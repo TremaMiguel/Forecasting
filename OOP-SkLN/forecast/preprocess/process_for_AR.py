@@ -46,9 +46,8 @@ class preprocess_AR():
     @staticmethod
     def penalized_mean(obs:'pd.Series') -> 'pd.Series':
         '''
-	        Implement Penalized Mean
-	        :param obs: sequential data to analyze
-    
+	   Implement Penalized Mean
+	   :param obs: sequential data to analyze
     	'''
         if isinstance(obs, pd.Series):
            values = list(obs)
@@ -75,10 +74,23 @@ class preprocess_AR():
  
         return pd.Series(y_pm)
 
+    @staticmethod 
+    def boxcox(obs:'pd.Series') -> 'pd.Series':
+	'''
+	   Implement a Box-Cox Transformation of Data
+	   Input:
+	   :param obs: sequential data to analyze
+	   Output:
+	   obs_bc: Data transformed
+           lmbd: Optimal lambda
+    	'''
+        obs_bc, lmbd = stats.boxcox(obs)
+	return (obs_bc, lmbd)
+
     @staticmethod
     def boxcox_untransform(obs:'pd.Series', lmbd:float) -> 'pd.Series':
         '''
-	        Untransform data after a Box-Cox transformation have been implemented.
+	  Untransform data after a Box-Cox transformation have been implemented.
           Input:
 	        :param obs: sequential data to analyze
           :param lmbd: lambda coefficient of box-cox
