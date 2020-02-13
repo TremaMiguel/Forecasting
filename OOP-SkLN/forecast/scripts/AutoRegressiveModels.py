@@ -1,7 +1,7 @@
 from scipy import stats
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing, Holt
-from process_for_AR import *
+from preprocess.process_for_AR import *
 from collections.abc import Sequence
 
 
