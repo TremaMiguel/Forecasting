@@ -5,7 +5,7 @@ from process_for_AR import *
 from collections.abc import Sequence
 
 
-def arima(obs, p_mean = False, boxcox = False, n_forecast = 2):
+def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
         '''
            Implement a Seasonal Arima Model with Grid Search to find the model with the best
            combination of parameters based on a MSE minimization.
@@ -75,7 +75,7 @@ def arima(obs, p_mean = False, boxcox = False, n_forecast = 2):
                                     enforce_invertibility=False)
             results = mod.fit()
         except:
-            print("Error with the model")  
+            print("Error while fitting the model")
 
 
         # Untransform Box-Cox Data
@@ -89,7 +89,7 @@ def arima(obs, p_mean = False, boxcox = False, n_forecast = 2):
         
         
         
-def sem(obs, p_mean = False, boxcox = False, n_forecast = 2):
+def sem(obs, p_mean:bool, boxcox:bool, n_forecast:int):
         '''
            Implement a Simple Exponential Smoothin with Grid Search to find the model with the best
            combination of parameters based on an SSE minimization.
@@ -106,7 +106,8 @@ def sem(obs, p_mean = False, boxcox = False, n_forecast = 2):
            bic: BIC of model
            mse: MSE of model
            sse_min: SSE of model
-    	  '''       
+    	  '''
+        assert type(obs) == Sequence, "Data must be of seq type"
         
         if p_mean == True:
             y_prc = preprocess_AR().penalized_mean(obs)
@@ -127,12 +128,12 @@ def sem(obs, p_mean = False, boxcox = False, n_forecast = 2):
                 if sse <= sse_min:
                     sse_min, sl = sse, i
         except:
-            print("Error while Runnig SEM")
-        
-        # Fit the best model
-        mdl = SimpleExpSmoothing(y_prc).fit(smoothing_level = sl,optimized=False)
-        aic, bic = mdl.aic, mdl.bic
+            print("Error while fitting the model")
+        else:
+            mdl = SimpleExpSmoothing(y_prc).fit(smoothing_level = sl,optimized=False)
+            aic, bic = mdl.aic, mdl.bic
 
+        # Untransform Box-Cox Data
         if untransform:
             pred = preprocess_AR().boxcox_untransform(mdl.fittedvalues, lmbd)
             forecast = preprocess_AR().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
@@ -143,3 +144,135 @@ def sem(obs, p_mean = False, boxcox = False, n_forecast = 2):
             mse = ((obs.astype(float).values - pred)**2).mean()
 
         return (forecast, aic, bic, mse, sse_min)
+
+def holt(obs, p_mean:bool, boxcox:bool, n_forecast:int):
+    '''
+           Implement a Holt Model with Grid Search to find the model with the best
+           combination of parameters based on a SSE minimization.
+           
+           Input:
+           :param obs: sequential data for forecasting
+           :param p_mean: wether or not to apply penalized_mean
+           :param boxcox: wether or not to apply boxcox transformation
+           :param n_forecast: number of observations to forecast
+          
+           Output:
+           forecast: Forecast for the next n_forecast observations
+           aic_min: AIC of model
+           bic: BIC of model
+           mse_min: MSE of model
+           sse: SSE of model
+    	  '''                  
+    assert type(obs) == Sequence, "Data must be of seq type"
+        
+    if p_mean == True:
+            y_prc = preprocess_AR().penalized_mean(obs)
+        else:
+            y_prc = obs
+
+    untransform = False
+    if boxcox == True:
+        y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+        untransform = True  
+
+    # Fit model and forecast
+    sse_min = 1000000000
+    alpha = beta = phi = 0
+    values = [.95,.9,.85,.8,.75,.7,.65,.6,.55,.5,.45,.4,.35,.3,.25,.2,.15,.1,.05]
+    combinations = [[v1, v2, v3] for v1 in values for v2 in values for v3 in values]
+    
+    try:
+        for c in combinations: 
+            sl,ss,ds = c
+            mdl = Holt(y_prc, damped = damped).fit(smoothing_level=sl, 
+                                                 smoothing_slope=ss,
+                                                 damping_slope=ds,
+                                                 optimized=False)           
+            sse = np.sum((y_prc - mdl.fittedvalues)**2)
+            if sse <= sse_min:
+                sse_min, alpha, beta, phi = sse, sl, ss, ds
+    except:
+        print("Error while fitting the model")
+    else:
+        mdl = Holt(y_prc, damped = damped).fit(smoothing_level=alpha, 
+                                               smoothing_slope=beta,
+                                               damping_slope=phi, 
+                                               optimized=False)
+        
+    if untransform:
+        pred = preprocess_AR().boxcox_untransform(mdl.fittedvalues, lmbd)
+        forecast = preprocess_AR().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
+    else:
+        pred = mdl.fittedvalues
+        forecast = mdl.forecast(n_forecast)
+    
+    # Metrics
+    aic, bic, mse = mdl.aic, mdl.bic, ((obs.astype(float).values - pred)**2).mean()
+
+    return (forecast, aic, bic, mse, sse_min)  
+
+
+def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
+    '''
+           Implement a Holt Additive Model, abrupt changes decides the seasonal component based 
+           on the number of changes (y_{i+1} - y_{i}) that are greater than the median of the observations (obs)
+           
+           Input:
+           :param obs: sequential data for forecasting
+           :param p_mean: wether or not to apply penalized_mean
+           :param boxcox: wether or not to apply boxcox transformation
+           :param n_forecast: number of observations to forecast
+          
+           Output:
+           forecast: Forecast for the next n_forecast observations
+           aic_min: AIC of model
+           bic: BIC of model
+           mse_min: MSE of model
+           sse: SSE of model
+    	  '''  
+
+    assert type(obs) == Sequence, "Data must be of seq type"
+        
+    if p_mean == True:
+            y_prc = preprocess_AR().penalized_mean(obs)
+        else:
+            y_prc = obs
+    
+    #Abrupt Changes
+    mean = obs.mean()
+    dac = uac = sl = 0
+    for i in range(len(obs) - 1):
+        if obs.values[i] - obs.values[i+1] > mean:
+            dac += 1
+    for i in range(len(obs) - 1):
+        if obs.values[i+1] - obs.values[i] >= mean:
+            uac += 1
+    if (dac == 1) & (uac == 1):
+        sl = dac + uac
+    else:
+        sl = max(dac,uac)
+    
+    # Fit model and forecast
+    alpha = beta = phi = 0 
+    error = ''
+    try:
+        mdl = ExponentialSmoothing(y_prc, 
+                                   seasonal_periods=sl, 
+                                   trend='add', 
+                                   seasonal='add', 
+                                   damped=damped).fit(use_boxcox=boxcox)
+    except:
+        mdl = ExponentialSmoothing(y_prc, 
+                                   seasonal_periods=dac + uac, 
+                                   trend='add', 
+                                   seasonal='add', 
+                                   damped=damped).fit(use_boxcox=boxcox)
+  
+    
+    # Metrics
+    aic, bic = mdl.aic, mdl.bic
+    mse = ((obs.astype(float).values - mdl.fittedvalues.values)**2).mean()
+    sse = np.sum((obs.astype(float).values - mdl.fittedvalues.values)**2)  
+    forecast = mdl.forecast(n_forecast)
+    
+    return (forecast, aic, bic, mse, sse)
