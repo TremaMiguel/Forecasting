@@ -1,4 +1,4 @@
-from AutoRegressiveModels import *
+from scripts.AutoRegressiveModels import *
 
 class AutoRegressives():
 
