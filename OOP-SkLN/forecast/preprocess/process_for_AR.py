@@ -126,14 +126,12 @@ class pp_tests():
             model = model.join('arima').strip()
         return model, regularization
 
-class pp_procedures_AR():
+class pp_processes():
 
     def __init__(self, obs:'Rtype'):
         self.obs = obs
         self.obs_t = pd.Series()
 
-
-    @staticmethod 
     def interpolation(self, method:str, plot:bool, params:dict) -> 'pd.Series':
         '''
           Perform interpolation to the given data (it should show missing values with NA) methods 
@@ -174,7 +172,6 @@ class pp_procedures_AR():
         self.obs_t = res 
         return (res, method)
 
-    @staticmethod
     def outlier_detection(self, method:str, plot:bool):
         '''
           Perform outlier detection applying the locate_outliers function from the tsoutliers
@@ -282,3 +279,81 @@ class pp_procedures_AR():
         self.obs_t, self.obs = res, org 
 
         return (res, idx, rep)
+
+
+    def structural_change(self, method:str):
+
+	'''
+	  Structural Break Change Analysis through fluctutation process or F-statistic test according to the 
+	  methods of the strucchange R package.
+	  Input:
+	    :method: The avaible options are 'CUSUM', 'MOSUM', or 'Ftest'.
+
+	  Output:
+	    :result: If you choose CUSUM or MOSUM processes it outputs in a tuple the respective processes with 
+	    a 95% confidence interval boundary. Otherwise, it returns a tuple with a general F-test with the corresponding
+	    breakpoints in the series, besides the statistic and the p-value of the supF and aveF test. 
+	'''
+
+        formula = ro.r("y ~ 1")
+
+	# Cusum Process
+	if method == 'CUSUM':
+	    res_ols = strucchange.efp(formula, "OLS-CUSUM", data = self.obs)
+	    res_rec = strucchange.efp(formula, "Rec-CUSUM", data = self.obs)
+	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
+	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
+
+	    # Graphical Visualization 
+	    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
+	    plt.style.use('ggplot2')
+	    ax1.plot(p_ols['process'], color = 'blue')
+	    ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
+	    ax1.set_title('OLS Residuals CUSUM')
+	    ax1.grid(False)
+	    ax2.plot(p_rec['process'], color = 'green')
+	    ax2.plot(bd_rec, color = 'red')
+	    ax2.set_title('Recursive Residuals CUSUM')
+	    ax2.grid(False)   
+
+	    result = (p_ols, p_rec, bd_ols, bd_rec)
+
+	# Musum process
+	elif method == 'MOSUM':
+	    res_ols = strucchange.efp(formula, "OLS-MOSUM", data = self.obs)         
+	    res_rec = strucchange.efp(formula, "Rec-MOSUM", data = self.obs)
+	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
+	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
+
+	    # Graphical Visualization 
+	    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
+	    plt.style.use('ggplot2')
+	    ax1.plot(p_ols['process'], color = 'blue')
+	    ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
+	    ax1.set_title('OLS Residuals MOSUM')
+	    ax1.grid(False)
+	    ax2.plot(p_rec['process'], color = 'green')
+	    ax2.plot(bd_rec, color = 'red')
+	    ax2.set_title('Recursive Residuals MOSUM')
+	    ax2.grid(False)
+
+	    result = (p_ols, p_rec, bd_ols, bd_rec)
+
+	# F-statistic test
+	else:
+	    # General Test
+	    Ftest = strucchange.Fstats(formula, 0, 1, data = self.obs)
+	    Fstat, breakpoints = Ftest.rx2('Fstats'), Ftest.rx2('breakpoint')
+
+	    # SupF Test
+	    Fsup = strucchange.sctest(formula, "supF", 0.2, 0.8, data = self.obs)
+	    FSstat, FSpvalue = Fsup.rx2('statistic'), Fsup.rx2('p.value')
+
+	    # AveF Test
+	    Fave = strucchange.sctest(formula, "aveF", 0.2, 0.8, data = self.obs)
+	    FAstat, FApvalue = Fave.rx2('statistic'), Fave.rx2('p.value')
+
+	    result = (Fstat, breakpoints, FSstat, FSpvalue, FAstat, FApvalue)
+
+	return result 
+
