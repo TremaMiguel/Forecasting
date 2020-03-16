@@ -63,6 +63,22 @@ class pp_transforms():
         obs_bc, lmbd = stats.boxcox(obs)
 	return (obs_bc, lmbd)
 
+    @staticmethod 
+    def yeoJohnson(obs:'pd.Series') -> 'pd.Series':
+	'''
+	   Implement a Yeo Johnson Transformation of Data,
+	   it is ideal for data with negative values. 
+	   
+       Input:
+	   :param obs: sequential data to analyze
+	   
+       Output:
+	   obs_bc: Data transformed
+           lmbd: Optimal lambda
+    	'''
+        obs_yj, lmbd = stats. yeojohnson(obs)
+	return (obs_yj, lmbd)
+
     @staticmethod
     def boxcox_untransform(obs:'pd.Series', lmbd:float) -> 'pd.Series':
         '''
