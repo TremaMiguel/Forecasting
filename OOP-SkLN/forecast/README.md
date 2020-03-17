@@ -1,8 +1,14 @@
 # Forecasting  
 
-Currently, it implements Decision Tree Models from the SKlearn Ensemble library and XGBoost library (see [1] and [2]) and AutoRegressive Models like Simple Exponential Smoothing, Holt, Holt-Winters and Arima from the StatsModels library for forecasting. 
+This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series. From autoregressive models (Simple Exponential Smoothing, Holt, Holt-Winters or Arima) to boosting trees (Ada Boost, Gradient Boosting, Random Forest, XGBoost). Additionaly, you can performs outlier detection and structural change tests.
 
-For the decision trees the data is transformed with a Window Slide, for the Auto Regressive Models it is performed a Dicker Fuller Test and KPSS test to test for seasonality and trend in data to choose the right model to fit to the time series.
+# Autoregressive Models
+
+The selection of the parameters ```p```, ```d``` or ```q``` for the Arima model or the ```alpha```, ```beta``` for the other models is based on a grid search.
+
+# Decision Tree Models
+
+First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable ```y_{t+1}``` we consider n past observations ```y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}```. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
 # Components of a Time Series (Theory)
 
@@ -11,8 +17,8 @@ A Time Series has three basic components, which are helpful to understand in ord
 1. Trend. They are up or down changes (steep upward slope, plateauing downward slope).
 2. Seasonality. The effect on the time series by the season (measured by time).
 3. Noise. It is composed of:
-   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance (sigma^2) and each value has a zero correlation with all other values in the series. See [5] for more details. 
-   *   Random Walk. A random walk is another time series model where the current observation is equal to the previous observation with a random step up or down. Checkout [6].
+   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance (sigma^2) and each value has a zero correlation with all other values in the series. See [6] for more details. 
+   *   Random Walk. A random walk is another time series model where the current observation is equal to the previous observation with a random step up or down. Checkout [7].
 
 # Preprocess Data (Functions)
 
@@ -62,7 +68,7 @@ Normally, to treat this unusual observations (outliers) you could implement the 
 ##### 3. Structural Changes
 
 With structural changes we seek to determine if the parameters of the model are not stable throughout the
-sample period but change over time, that is, a parametric time series model. According to [3], Bruce Hansen recommends to
+sample period but change over time, that is, a parametric time series model. According to [4], Bruce Hansen recommends to
 proceed as follows:
 
 1. Test for structural breaks using the Andrews or Bai/Perron tests
@@ -90,13 +96,15 @@ The kind of perturbation that shifts cause on the observed time series can be cl
 
 [2] XGBoost. URL:https://xgboost.readthedocs.io/en/latest/index.html
 
-[3] Hansen, Bruce. Advanced Time Series and Forecasting Lecture 5 Structural Breaks. The University of Wisconsin, 2012.
+[3] Friedman, Jerome; Hastie, Trevor; Tibshirani, Robert. The elements of Statistical Learning. Springer, 2008.
 
-[4] Rousseeuyy, Peter; Leroy, Annick. Robust Regression and Outlier Detection. John Wiley & Sons, 1987.
+[4] Hansen, Bruce. Advanced Time Series and Forecasting Lecture 5 Structural Breaks. The University of Wisconsin, 2012.
 
-[5] Stackoverflow. https://stats.stackexchange.com/questions/289349/why-do-we-study-the-noise-sequence-in-time-series-analysis 
+[5] Rousseeuyy, Peter; Leroy, Annick. Robust Regression and Outlier Detection. John Wiley & Sons, 1987.
 
-[6] Quantstart. https://www.quantstart.com/articles/White-Noise-and-Random-Walks-in-Time-Series-Analysis/
+[6] Stackoverflow. https://stats.stackexchange.com/questions/289349/why-do-we-study-the-noise-sequence-in-time-series-analysis 
+
+[7] Quantstart. https://www.quantstart.com/articles/White-Noise-and-Random-Walks-in-Time-Series-Analysis/
 
 
 
