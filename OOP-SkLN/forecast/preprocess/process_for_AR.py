@@ -144,11 +144,46 @@ class pp_tests():
 
 class pp_processes():
 
-    def __init__(self, obs:'Rtype'):
-        self.obs = obs
-        self.obs_t = pd.Series()
+    def __init__(self, dt:'pd.DataFrame',obj_var:str,time_var:str):
+	self.dt = dt
+	self.dt_t = pd.DataFrame()
+	self.obj_var = obj_var
+	self.time_var = time_var
+        self.obj = dt[obj_var]
+	self.obj_t = pd.Series()
+        self.time = dt[time_var]
+ 
+    def fill_time(self) -> 'pd.DataFrame':
+	'''
+          Fill missing data by the given initial variable time_var. For example, if time_var is in weeks of the year,
+	  for the values j = 30, k = 35, it will fill with NA's the corresponding missing data up until j reaches the 
+	  value of k. Basically,
+	  	while k - j > 1:
+		    j += 1
+         
+          Input:
+            :param self: The original dataframe 
+          
+          Output:
+            :output: A dataframe with columns named time_var, obj_var, in which each imputed time_var has as entry NA.
+        '''
+	times, output = self.time_var.astype(int).unique().tolist(), []
+	df = self.dt[[self.obj_var, self.time_var]]
+        for t in range(0, len(times) - 1):
+	    if times[s+1] - times[s] > 1:
+		times_add = times[s] + 1
+	        while times_add < sem[s+1]:
+		    output.append([times_add, np.nan])
+		    times_add += 1
 
-    def interpolation(self, method:str, plot:bool, params:dict) -> 'pd.Series':
+	output = pd.DataFrame(v, columns= [self.time_var, self.obj_var])
+	output = pd.concat([df,v]).sort_values(by=[self.time_var], axis = 0, ascending = True)
+
+	self.dt_t = output
+	return output
+	
+	
+    def interpolation(self, method:str, plot:bool, params:dict) -> 'pd.Series',str:
         '''
           Perform interpolation to the given data (it should show missing values with NA) methods 
           from the R libraries forecast, R and zoo. Among them are NA, Kalman, Moving Average, 
@@ -161,20 +196,22 @@ class pp_processes():
             :res: Interpolated data
             :method: Regularize data in case there is no stationarity 
         '''
+	
+	data = self.dt[[self.obj_var, self.time_var]]
 
         # Interpolation Method
         if method == 'NaInterpolation':
-            res = forecast.na_interp(self.obs, **params)
+            res = forecast.na_interp(data, **params)
         elif method == 'KalmanInterpolation':
-            res = imputeTS.na_kalman(self.obs, **params)
+            res = imputeTS.na_kalman(data, **params)
         elif method == 'MAInterpolation:
-            res = imputeTS.na_ma(self.obs, **params)
+            res = imputeTS.na_ma(data, **params)
         elif method == 'SDInterpolation':
-            res = imputeTS.na_seadec(self.obs, **params)
+            res = imputeTS.na_seadec(data, **params)
         elif method == 'SSInterpolation':
-            res = imputeTS.na_seasplit(self.obs, **params)  
+            res = imputeTS.na_seasplit(data, **params)  
         else:
-            res = zoo.na_StructTS(self.obs, **params)       
+            res = zoo.na_StructTS(data, **params)       
 
         # Visualize Results
         if plot:
@@ -185,7 +222,7 @@ class pp_processes():
             plt.grid(False)
             plt.title(f"Interpolated data with method {method}")
 
-        self.obs_t = res 
+        self.dt_t = res 
         return (res, method)
 
     def outlier_detection(self, method:str, plot:bool):
@@ -207,7 +244,7 @@ class pp_processes():
 
 
         # Fit an Arima model 
-        fit = forecast_automarima(self.obs, max_p=3, max_q=3,
+        fit = forecast_automarima(self.obj, max_p=3, max_q=3,
                                   ic = ro.StrVector(["bic"]),
                                   trace = True, nmodels = 15,
                                   stepwise = True)
@@ -226,14 +263,13 @@ class pp_processes():
         if plot:
             plt.figure(figsize = (12, 6))
             plt.style.use('fivethirtyeight')
-            plt.plot(self.obs, color = 'blue')
+            plt.plot(self.obj, color = 'blue')
             arrow = dict(arrowstyle='->', color='red', linewidth=5, mutation_scale=15)
             plt.plot(fitted, color = 'black')
             plt.grid(False)
             # Annotate arrows with type of outlier
             for i in range(0,len(idx)):
                 plt.annotate(type[i],xy=(idx[0], fitted[idx[0]]), xytext=(idx[0], fitted[idx[0] + 3]), arrowprops=arrow)
-
 
         return (res, idx, type)
 
@@ -254,10 +290,10 @@ class pp_processes():
             :rep: Values that were replaced according to idx.
         '''
 
-        res = org = self.obs
+        res = org = self.obj
         
         # Option 1: Tsoutliers
-        output, other = forecast_tsoutliers(self.obs), False 
+        output, other = forecast_tsoutliers(self.obj), False 
         idx, rep = output.rx2('index'), output.rx2('replacements')
         idx = idx - 1 # Python indexes start in 0
         
@@ -272,13 +308,13 @@ class pp_processes():
             
             # Option 2: Hampel Filter
             if method == "Hampel":
-                res_hmp = pracma_hampel(self.obs, k = 4, t0 = 2.5)
+                res_hmp = pracma_hampel(self.obj, k = 4, t0 = 2.5)
                 res, idx, rep = res_hmp.rx2('y'), res_hmp.rx2('ind'), None
             
             # Option 3: Interpolation Methods
             else:
                 output, idx, *rest = self.outlier_detection(method = 'locate_outliers', plot=False)
-                self.obs[idx] = np.nan 
+                self.obj[idx] = np.nan 
                 res, method = self.interpolation(method = method, plot = False)
                 rep = res[idx]
 
@@ -292,7 +328,7 @@ class pp_processes():
             ax2.grid(False)
             ax2.title("Modified Time Series") 
 
-        self.obs_t, self.obs = res, org 
+        self.obj_t, self.obj = res, org 
 
         return (res, idx, rep)
 
@@ -315,8 +351,8 @@ class pp_processes():
 
 	# Cusum Process
 	if method == 'CUSUM':
-	    res_ols = strucchange.efp(formula, "OLS-CUSUM", data = self.obs)
-	    res_rec = strucchange.efp(formula, "Rec-CUSUM", data = self.obs)
+	    res_ols = strucchange.efp(formula, "OLS-CUSUM", data = self.obj)
+	    res_rec = strucchange.efp(formula, "Rec-CUSUM", data = self.obj)
 	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
 	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
 
@@ -336,8 +372,8 @@ class pp_processes():
 
 	# Musum process
 	elif method == 'MOSUM':
-	    res_ols = strucchange.efp(formula, "OLS-MOSUM", data = self.obs)         
-	    res_rec = strucchange.efp(formula, "Rec-MOSUM", data = self.obs)
+	    res_ols = strucchange.efp(formula, "OLS-MOSUM", data = self.obj)         
+	    res_rec = strucchange.efp(formula, "Rec-MOSUM", data = self.obj)
 	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
 	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
 
@@ -358,15 +394,15 @@ class pp_processes():
 	# F-statistic test
 	else:
 	    # General Test
-	    Ftest = strucchange.Fstats(formula, 0, 1, data = self.obs)
+	    Ftest = strucchange.Fstats(formula, 0, 1, data = self.obj)
 	    Fstat, breakpoints = Ftest.rx2('Fstats'), Ftest.rx2('breakpoint')
 
 	    # SupF Test
-	    Fsup = strucchange.sctest(formula, "supF", 0.2, 0.8, data = self.obs)
+	    Fsup = strucchange.sctest(formula, "supF", 0.2, 0.8, data = self.obj)
 	    FSstat, FSpvalue = Fsup.rx2('statistic'), Fsup.rx2('p.value')
 
 	    # AveF Test
-	    Fave = strucchange.sctest(formula, "aveF", 0.2, 0.8, data = self.obs)
+	    Fave = strucchange.sctest(formula, "aveF", 0.2, 0.8, data = self.obj)
 	    FAstat, FApvalue = Fave.rx2('statistic'), Fave.rx2('p.value')
 
 	    result = (Fstat, breakpoints, FSstat, FSpvalue, FAstat, FApvalue)
