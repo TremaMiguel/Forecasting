@@ -21,7 +21,7 @@ sudo add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic
 sudo apt install r-base
 
 # Install R packages
-cd /home/your_user_name
+cd ~/forecast/setup
 while read p; do
   echo "installing $p package"
   sudo su - -c "R -q -e \"install.packages('$p')\""
