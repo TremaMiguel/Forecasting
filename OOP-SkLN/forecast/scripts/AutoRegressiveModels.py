@@ -1,8 +1,9 @@
 from scipy import stats
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing, Holt
-from preprocess.process_for_AR import *
+from preprocess import pp_transforms, pp_tests, pp_processes
 import pandas as pd 
+import numpy as np
 import itertools
 
 
@@ -31,13 +32,13 @@ def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
         seasonal_pdq = [(x[0], x[1], x[2], 52) for x in list(itertools.product(p, d, q))]
         
         if p_mean == True:
-            y_prc = preprocess_AR().penalized_mean(obs)
+            y_prc = pp_transforms().penalized_mean(obs)
         else:
             y_prc = obs
 
         untransform = False
         if boxcox == True:
-            y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+            y_prc, lmbd = pp_transforms().boxcox(y_prc)
             untransform = True        
 
         # Perform a Grid Search to find the best model
@@ -69,20 +70,21 @@ def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
 
         # Fit the best model
         try:
-            mod = sm.tsa.statespace.SARIMAX(y_pm,
+            mod = sm.tsa.statespace.SARIMAX(y_prc,
                                     order=(order[0][0],order[0][1],order[0][2]),
                                     seasonal_order=(seasonal[0][0],seasonal[0][1],seasonal[0][2],52),
                                     enforce_stationarity=False,
                                     enforce_invertibility=False)
             results = mod.fit()
-        except:
-            print("Error while fitting the model")
+        except Exception as e:
+            print("Error while fitting the model","\n",e)
+        
 
 
         # Untransform Box-Cox Data
         if untransform:      
-            y_pred = preprocess_AR().boxcox_untransform(y_pred,lmbd)  
-            mse_min, forecast = ((y_pred - y.astype(float).values) ** 2).mean(), preprocess_AR().boxcox_untransform(results.forecast(n_forecast), lmbd)
+            y_pred = pp_transforms().boxcox_untransform(y_pred,lmbd)  
+            mse_min, forecast = ((y_pred - y.astype(float).values) ** 2).mean(), pp_transforms().boxcox_untransform(results.forecast(n_forecast), lmbd)
         else:
             mse_min, forecast = ((y_pred - y.astype(float).values) ** 2).mean(), results.forecast(n_forecast)
       
@@ -107,37 +109,40 @@ def sem(obs, p_mean:bool, boxcox:bool, n_forecast:int):
            bic: BIC of model
            mse: MSE of model
            sse_min: SSE of model
-    	  '''
+        '''
         assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
         if p_mean == True:
-            y_prc = preprocess_AR().penalized_mean(obs)
+            y_prc = pp_transforms().penalized_mean(obs)
         else:
             y_prc = obs
 
         untransform = False
         if boxcox == True:
-            y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+            y_prc, lmbd = pp_transforms().boxcox(y_prc)
             untransform = True   
 
         # Perform a Grid Search to find the best model
         sse_min, ss = 1000000000, 0
+        print(obs)
+        print(y_prc)
         try:
             for i in [.95,.9,.85,.8,.75,.7,.65,.6,.55,.5,.45,.4,.35,.3,.25,.2,.15,.1,.05]:
-                mdl = SimpleExpSmoothing(y_pm).fit(smoothing_level = i, optimized = False)
+                mdl = SimpleExpSmoothing(y_prc).fit(smoothing_level = i, optimized = False)
                 sse = np.sum((y_prc.astype(float) - mdl.fittedvalues)**2)
                 if sse <= sse_min:
                     sse_min, sl = sse, i
-        except:
-            print("Error while fitting the model")
-        else:
-            mdl = SimpleExpSmoothing(y_prc).fit(smoothing_level = sl,optimized=False)
-            aic, bic = mdl.aic, mdl.bic
+        except Exception as e:
+            print("Error while fitting the model","\n",e)
+        
+        # Best model
+        mdl = SimpleExpSmoothing(y_prc).fit(smoothing_level = sl,optimized=False)
+        aic, bic = mdl.aic, mdl.bic
 
         # Untransform Box-Cox Data
         if untransform:
-            pred = preprocess_AR().boxcox_untransform(mdl.fittedvalues, lmbd)
-            forecast = preprocess_AR().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
+            pred = pp_transforms().boxcox_untransform(mdl.fittedvalues, lmbd)
+            forecast = pp_transforms().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
             mse = ((obs.astype(float).values - pred)**2).mean()
         else:
             pred = mdl.fittedvalues
@@ -167,13 +172,13 @@ def holt(obs, p_mean:bool, boxcox:bool, n_forecast:int):
     assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
     if p_mean == True:
-        y_prc = preprocess_AR().penalized_mean(obs)
+        y_prc = pp_transforms().penalized_mean(obs)
     else:
         y_prc = obs
 
     untransform = False
     if boxcox == True:
-        y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+        y_prc, lmbd = pp_transforms().boxcox(y_prc)
         untransform = True  
 
     # Fit model and forecast
@@ -185,24 +190,25 @@ def holt(obs, p_mean:bool, boxcox:bool, n_forecast:int):
     try:
         for c in combinations: 
             sl,ss,ds = c
-            mdl = Holt(y_prc, damped = damped).fit(smoothing_level=sl, 
-                                                 smoothing_slope=ss,
-                                                 damping_slope=ds,
-                                                 optimized=False)           
+            mdl = Holt(y_prc, damped = True).fit(smoothing_level=sl, 
+                                                   smoothing_slope=ss,
+                                                   damping_slope=ds,
+                                                   optimized=False)           
             sse = np.sum((y_prc - mdl.fittedvalues)**2)
             if sse <= sse_min:
                 sse_min, alpha, beta, phi = sse, sl, ss, ds
-    except:
-        print("Error while fitting the model")
-    else:
-        mdl = Holt(y_prc, damped = damped).fit(smoothing_level=alpha, 
-                                               smoothing_slope=beta,
-                                               damping_slope=phi, 
-                                               optimized=False)
+    except Exception as e:
+            print("Error while fitting the model","\n",e)
+        
+    # Best model
+    mdl = Holt(y_prc, damped=True).fit(smoothing_level=alpha, 
+                                           smoothing_slope=beta,
+                                           damping_slope=phi, 
+                                           optimized=False)
         
     if untransform:
-        pred = preprocess_AR().boxcox_untransform(mdl.fittedvalues, lmbd)
-        forecast = preprocess_AR().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
+        pred = pp_transforms().boxcox_untransform(mdl.fittedvalues, lmbd)
+        forecast = pp_transforms().boxcox_untransform(mdl.forecast(n_forecast), lmbd)
     else:
         pred = mdl.fittedvalues
         forecast = mdl.forecast(n_forecast)
@@ -235,7 +241,7 @@ def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
     assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
     if p_mean == True:
-        y_prc = preprocess_AR().penalized_mean(obs)
+        y_prc = pp_transforms().penalized_mean(obs)
     else:
         y_prc = obs
     
@@ -261,13 +267,13 @@ def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
                                    seasonal_periods=sl, 
                                    trend='add', 
                                    seasonal='add', 
-                                   damped=damped).fit(use_boxcox=boxcox)
+                                   damped=True).fit(use_boxcox=boxcox)
     except:
         mdl = ExponentialSmoothing(y_prc, 
                                    seasonal_periods=dac + uac, 
                                    trend='add', 
                                    seasonal='add', 
-                                   damped=damped).fit(use_boxcox=boxcox)
+                                   damped=True).fit(use_boxcox=boxcox)
   
     
     # Metrics
