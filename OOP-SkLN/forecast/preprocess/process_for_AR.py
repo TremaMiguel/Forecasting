@@ -2,10 +2,11 @@
 #import subprocess
 #subprocess.run('conda activate your_conda_env', shell=True)
 
-from scipy import stats
+
 from statsmodels.tsa.stattools import adfuller,kpss
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
+from scipy.stats import boxcox, yeojohnson
 import rpy2.robjects as ro 
 import numpy as np 
 import pandas as pd 
@@ -29,29 +30,29 @@ class pp_transforms():
            :param obs: sequential data to analyze
         '''
         if isinstance(obs, pd.core.series.Series):
-           values = list(obs)
+            values = list(obs)
         else:
-           values = obs
+            values = obs
         
         obs_pm, mean, std = [], obs.mean(), obs.std()
         
         for v in values:
             if v > mean+2*std:         
                 v = v*(1/(np.abs(mean-v)/(2*std)))
-                y_pm.append(v)
+                obs_pm.append(v)
             elif v > mean+std:
                 v = v**2/np.abs(v+std/(std**2/mean-v))
-                y_pm.append(v)
+                obs_pm.append(v)
             elif v < mean-std:
                 v = v**2/np.abs(v-std/((std**2/mean-v)))
-                y_pm.append(v)
+                obs_pm.append(v)
             elif v < mean-2*std:
                 v = v*(1/((mean-v)/(2*std) - 1))
-                y_pm.append(v)
+                obs_pm.append(v)
             else:
-                y_pm.append(v)    
+                obs_pm.append(v)    
  
-        return pd.Series(y_pm)
+        return pd.Series(obs_pm)
 
     @staticmethod 
     def boxcox(obs:'pd.Series') -> 'pd.Series':
@@ -65,7 +66,7 @@ class pp_transforms():
            obs_bc: Data transformed
            lmbd: Optimal lambda
         '''
-        obs_bc, lmbd = stats.boxcox(obs)
+        obs_bc, lmbd = boxcox(obs)
         return (obs_bc, lmbd)
 
     @staticmethod 
@@ -81,7 +82,7 @@ class pp_transforms():
            obs_bc: Data transformed
            lmbd: Optimal lambda
         '''
-        obs_yj, lmbd = stats.yeojohnson(obs)
+        obs_yj, lmbd = yeojohnson(obs)
         return (obs_yj, lmbd)
 
     @staticmethod
