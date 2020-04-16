@@ -1,3 +1,7 @@
+# Uncomment in case you're using an Activate anaconda env
+#import subprocess
+#subprocess.run('conda activate your_anaconda_env', shell=True)
+
 from scipy import stats
 from statsmodels.tsa.stattools import adfuller,kpss
 from rpy2.robjects.packages import importr
@@ -12,7 +16,7 @@ pandas2ri.activate()
 # Import R libraries
 strucchange, tsoutliers, base = importr('strucchange'), importr('tsoutliers'), importr('base')
 zoo, forecast, imputeTS = importr('zoo'), importr('forecast'), importr("imputeTS")
-tsoutliers, TSA, stats = importr('tsoutliers'), importr('TSA'), importr('stats')
+TSA, stats = importr('TSA'), importr('stats')
 pracma = importr('pracma')
 
 class pp_transforms():
