@@ -20,9 +20,9 @@ class pp_transforms():
     @staticmethod
     def penalized_mean(obs:'pd.Series') -> 'pd.Series':
         '''
-	   Implement Penalized Mean
-	   :param obs: sequential data to analyze
-    	'''
+           Implement Penalized Mean
+           :param obs: sequential data to analyze
+        '''
         if isinstance(obs, pd.Series):
            values = list(obs)
         else:
@@ -50,46 +50,46 @@ class pp_transforms():
 
     @staticmethod 
     def boxcox(obs:'pd.Series') -> 'pd.Series':
-	'''
-	   Implement a Box-Cox Transformation of Data
+        '''
+	    Implement a Box-Cox Transformation of Data
 	   
-       Input:
-	   :param obs: sequential data to analyze
+        Input:
+           :param obs: sequential data to analyze
 	   
-       Output:
-	   obs_bc: Data transformed
+        Output:
+           obs_bc: Data transformed
            lmbd: Optimal lambda
-    	'''
+        '''
         obs_bc, lmbd = stats.boxcox(obs)
-	return (obs_bc, lmbd)
+        return (obs_bc, lmbd)
 
     @staticmethod 
     def yeoJohnson(obs:'pd.Series') -> 'pd.Series':
-	'''
-	   Implement a Yeo Johnson Transformation of Data,
-	   it is ideal for data with negative values. 
+        '''
+           Implement a Yeo Johnson Transformation of Data,
+           it is ideal for data with negative values. 
 	   
-       Input:
-	   :param obs: sequential data to analyze
+           Input:
+           :param obs: sequential data to analyze
 	   
-       Output:
-	   obs_bc: Data transformed
+           Output:
+           obs_bc: Data transformed
            lmbd: Optimal lambda
-    	'''
+        '''
         obs_yj, lmbd = stats. yeojohnson(obs)
-	return (obs_yj, lmbd)
+        return (obs_yj, lmbd)
 
     @staticmethod
     def boxcox_untransform(obs:'pd.Series', lmbd:float) -> 'pd.Series':
         '''
-	  Untransform data after a Box-Cox transformation have been implemented.
+          Untransform data after a Box-Cox transformation have been implemented.
           Input:
-	        :param obs: sequential data to analyze
+	      :param obs: sequential data to analyze
           :param lmbd: lambda coefficient of box-cox
           
-    	'''
+         '''
       
-      assert type(obs) is pd.Series, "Data must be a pd.Series type"
+        assert type(obs) is pd.Series, "Data must be a pd.Series type"
       
         if lmbd == 0:
             obs = np.exp(obs)
@@ -145,21 +145,20 @@ class pp_tests():
 class pp_processes():
 
     def __init__(self, dt:'pd.DataFrame',obj_var:str,time_var:str):
-	self.dt = dt
-	self.dt_t = pd.DataFrame()
-	self.obj_var = obj_var
-	self.time_var = time_var
+        self.dt = dt
+        self.dt_t = pd.DataFrame()
+        self.obj_var = obj_var
+        self.time_var = time_var
         self.obj = dt[obj_var]
-	self.obj_t = pd.Series()
+        self.obj_t = pd.Series()
         self.time = dt[time_var]
  
     def fill_time(self) -> 'pd.DataFrame':
-	'''
-          Fill missing data by the given initial variable time_var. For example, if time_var is in weeks of the year,
-	  for the values j = 30, k = 35, it will fill with NA's the corresponding missing data up until j reaches the 
-	  value of k. Basically,
-	  	while k - j > 1:
-		    j += 1
+        '''
+           Fill missing data by the given initial variable time_var. For example, if time_var is in weeks of the year,
+           for the values j = 30, k = 35, it will fill with NA's the corresponding missing data up until j reaches the value of k. Basically,
+            while k - j > 1:
+                j += 1
          
           Input:
             :param self: The original dataframe 
@@ -167,23 +166,23 @@ class pp_processes():
           Output:
             :output: A dataframe with columns named time_var, obj_var, in which each imputed time_var has as entry NA.
         '''
-	times, output = self.time_var.astype(int).unique().tolist(), []
-	df = self.dt[[self.obj_var, self.time_var]]
+        times, output = self.time_var.astype(int).unique().tolist(), []
+        df = self.dt[[self.obj_var, self.time_var]]
         for t in range(0, len(times) - 1):
-	    if times[s+1] - times[s] > 1:
-		times_add = times[s] + 1
-	        while times_add < sem[s+1]:
-		    output.append([times_add, np.nan])
-		    times_add += 1
+            if times[s+1] - times[s] > 1:
+                times_add = times[s] + 1
+                while times_add < sem[s+1]:
+                    output.append([times_add, np.nan])
+                    times_add += 1
 
-	output = pd.DataFrame(v, columns= [self.time_var, self.obj_var])
-	output = pd.concat([df,v]).sort_values(by=[self.time_var], axis = 0, ascending = True)
+        output = pd.DataFrame(v, columns= [self.time_var, self.obj_var])
+        output = pd.concat([df,v]).sort_values(by=[self.time_var], axis = 0, ascending = True)
 
-	self.dt_t = output
-	return output
+        self.dt_t = output
+        return output
 	
 	
-    def interpolation(self, method:str, plot:bool, params:dict) -> 'pd.Series',str:
+    def interpolation(self, method:str, plot:bool, params:dict):
         '''
           Perform interpolation to the given data (it should show missing values with NA) methods 
           from the R libraries forecast, R and zoo. Among them are NA, Kalman, Moving Average, 
@@ -197,14 +196,14 @@ class pp_processes():
             :method: Regularize data in case there is no stationarity 
         '''
 	
-	data = self.dt[[self.obj_var, self.time_var]]
+        data = self.dt[[self.obj_var, self.time_var]]
 
         # Interpolation Method
         if method == 'NaInterpolation':
             res = forecast.na_interp(data, **params)
         elif method == 'KalmanInterpolation':
             res = imputeTS.na_kalman(data, **params)
-        elif method == 'MAInterpolation:
+        elif method == 'MAInterpolation':
             res = imputeTS.na_ma(data, **params)
         elif method == 'SDInterpolation':
             res = imputeTS.na_seadec(data, **params)
@@ -335,77 +334,77 @@ class pp_processes():
 
     def structural_change(self, method:str):
 
-	'''
-	  Structural Break Change Analysis through fluctutation process or F-statistic test according to the 
-	  methods of the strucchange R package.
-	  Input:
-	    :method: The avaible options are 'CUSUM', 'MOSUM', or 'Ftest'.
+        '''
+          Structural Break Change Analysis through fluctutation process or F-statistic test according to the 
+          methods of the strucchange R package.
+          Input:
+            :method: The avaible options are 'CUSUM', 'MOSUM', or 'Ftest'.
 
-	  Output:
-	    :result: If you choose CUSUM or MOSUM processes it outputs in a tuple the respective processes with 
-	    a 95% confidence interval boundary. Otherwise, it returns a tuple with a general F-test with the corresponding
-	    breakpoints in the series, besides the statistic and the p-value of the supF and aveF test. 
-	'''
+          Output:
+            :result: If you choose CUSUM or MOSUM processes it outputs in a tuple the respective processes with 
+            a 95% confidence interval boundary. Otherwise, it returns a tuple with a general F-test with the corresponding
+            breakpoints in the series, besides the statistic and the p-value of the supF and aveF test. 
+        '''
 
         formula = ro.r("y ~ 1")
 
-	# Cusum Process
-	if method == 'CUSUM':
-	    res_ols = strucchange.efp(formula, "OLS-CUSUM", data = self.obj)
-	    res_rec = strucchange.efp(formula, "Rec-CUSUM", data = self.obj)
-	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
-	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
+        # Cusum Process
+        if method == 'CUSUM':
+            res_ols = strucchange.efp(formula, "OLS-CUSUM", data = self.obj)
+            res_rec = strucchange.efp(formula, "Rec-CUSUM", data = self.obj)
+            bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
+            p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
 
-	    # Graphical Visualization 
-	    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
-	    plt.style.use('ggplot2')
-	    ax1.plot(p_ols['process'], color = 'blue')
-	    ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
-	    ax1.set_title('OLS Residuals CUSUM')
-	    ax1.grid(False)
-	    ax2.plot(p_rec['process'], color = 'green')
-	    ax2.plot(bd_rec, color = 'red')
-	    ax2.set_title('Recursive Residuals CUSUM')
-	    ax2.grid(False)   
+        # Graphical Visualization
+            f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
+            plt.style.use('ggplot2')
+            ax1.plot(p_ols['process'], color = 'blue')
+            ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
+            ax1.set_title('OLS Residuals CUSUM')
+            ax1.grid(False)
+            ax2.plot(p_rec['process'], color = 'green')
+            ax2.plot(bd_rec, color = 'red')
+            ax2.set_title('Recursive Residuals CUSUM')
+            ax2.grid(False)   
 
-	    result = (p_ols, p_rec, bd_ols, bd_rec)
+            result = (p_ols, p_rec, bd_ols, bd_rec)
 
-	# Musum process
-	elif method == 'MOSUM':
-	    res_ols = strucchange.efp(formula, "OLS-MOSUM", data = self.obj)         
-	    res_rec = strucchange.efp(formula, "Rec-MOSUM", data = self.obj)
-	    bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
-	    p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
+        # Musum process
+        elif method == 'MOSUM':
+            res_ols = strucchange.efp(formula, "OLS-MOSUM", data = self.obj)         
+            res_rec = strucchange.efp(formula, "Rec-MOSUM", data = self.obj)
+            bd_ols, bd_rec = strucchange.boundary(res_ols, alpha = 0.05), strucchange.boundary(res_rec, alpha = 0.05)
+            p_ols, p_rec = pd.DataFrame(res_ols.rx2('process')), pd.DataFrame(res_rec.rx2('process'))
 
-	    # Graphical Visualization 
-	    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
-	    plt.style.use('ggplot2')
-	    ax1.plot(p_ols['process'], color = 'blue')
-	    ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
-	    ax1.set_title('OLS Residuals MOSUM')
-	    ax1.grid(False)
-	    ax2.plot(p_rec['process'], color = 'green')
-	    ax2.plot(bd_rec, color = 'red')
-	    ax2.set_title('Recursive Residuals MOSUM')
-	    ax2.grid(False)
+            # Graphical Visualization 
+            f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12,6))
+            plt.style.use('ggplot2')
+            ax1.plot(p_ols['process'], color = 'blue')
+            ax1.axhline(y = bd_ols[0], xmin = 0, xmax = p_ols.shape[0], color = 'red')
+            ax1.set_title('OLS Residuals MOSUM')
+            ax1.grid(False)
+            ax2.plot(p_rec['process'], color = 'green')
+            ax2.plot(bd_rec, color = 'red')
+            ax2.set_title('Recursive Residuals MOSUM')
+            ax2.grid(False)
 
-	    result = (p_ols, p_rec, bd_ols, bd_rec)
+            result = (p_ols, p_rec, bd_ols, bd_rec)
 
-	# F-statistic test
-	else:
-	    # General Test
-	    Ftest = strucchange.Fstats(formula, 0, 1, data = self.obj)
-	    Fstat, breakpoints = Ftest.rx2('Fstats'), Ftest.rx2('breakpoint')
+        # F-statistic test
+        else:
+            # General Test
+            Ftest = strucchange.Fstats(formula, 0, 1, data = self.obj)
+            Fstat, breakpoints = Ftest.rx2('Fstats'), Ftest.rx2('breakpoint')
 
-	    # SupF Test
-	    Fsup = strucchange.sctest(formula, "supF", 0.2, 0.8, data = self.obj)
-	    FSstat, FSpvalue = Fsup.rx2('statistic'), Fsup.rx2('p.value')
+            # SupF Test
+            Fsup = strucchange.sctest(formula, "supF", 0.2, 0.8, data = self.obj)
+            FSstat, FSpvalue = Fsup.rx2('statistic'), Fsup.rx2('p.value')
 
-	    # AveF Test
-	    Fave = strucchange.sctest(formula, "aveF", 0.2, 0.8, data = self.obj)
-	    FAstat, FApvalue = Fave.rx2('statistic'), Fave.rx2('p.value')
+            # AveF Test
+            Fave = strucchange.sctest(formula, "aveF", 0.2, 0.8, data = self.obj)
+            FAstat, FApvalue = Fave.rx2('statistic'), Fave.rx2('p.value')
 
-	    result = (Fstat, breakpoints, FSstat, FSpvalue, FAstat, FApvalue)
+            result = (Fstat, breakpoints, FSstat, FSpvalue, FAstat, FApvalue)
 
-	return result 
+        return result 
 
