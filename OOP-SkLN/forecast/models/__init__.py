@@ -1,5 +1,5 @@
-from models.AutoRegressives import AutoRegressives 
-from models.DecisionTrees import EnsembleTrees
-from models.NeuralNetworks import NeuralNetworks
+from models.AutoRegressives import AutoRegressive
+from models.DecisionTrees import EnsembleTree
+from models.NeuralNetworks import NeuralNetwork
 
-__all__ = ['AutoRegressives', 'EnsembleTrees', 'NeuralNetworks']
+__all__ = ['AutoRegressive', 'EnsembleTree', 'NeuralNetwork']
