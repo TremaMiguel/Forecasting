@@ -1,6 +1,6 @@
-# Uncomment in case you're using an Activate anaconda env
+# Uncomment to activate an anaconda env 
 #import subprocess
-#subprocess.run('conda activate your_anaconda_env', shell=True)
+#subprocess.run('conda activate your_conda_env', shell=True)
 
 from scipy import stats
 from statsmodels.tsa.stattools import adfuller,kpss
@@ -8,6 +8,7 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
 import rpy2.robjects as ro 
 import numpy as np 
+import pandas as pd 
 import matplotlib.pyplot as plt
 
 # Activate automatic conversion
@@ -27,7 +28,7 @@ class pp_transforms():
            Implement Penalized Mean
            :param obs: sequential data to analyze
         '''
-        if isinstance(obs, pd.Series):
+        if isinstance(obs, pd.core.series.Series):
            values = list(obs)
         else:
            values = obs
@@ -80,7 +81,7 @@ class pp_transforms():
            obs_bc: Data transformed
            lmbd: Optimal lambda
         '''
-        obs_yj, lmbd = stats. yeojohnson(obs)
+        obs_yj, lmbd = stats.yeojohnson(obs)
         return (obs_yj, lmbd)
 
     @staticmethod
@@ -93,7 +94,7 @@ class pp_transforms():
           
          '''
       
-        assert type(obs) is pd.Series, "Data must be a pd.Series type"
+        assert type(obs) is pd.core.series.Series, "Data must be a pd.Series type"
       
         if lmbd == 0:
             obs = np.exp(obs)
@@ -117,7 +118,8 @@ class pp_tests():
           :model: Choosen model according to behavior of data
           :regularization: Regularize data in case there is no stationarity 
         '''
-        assert type(obs) is pd.Series, "Data must be a pd.Series type"
+        
+        assert type(obs) is pd.core.series.Series, "Data must be a pd.Series type"
       
         model, regularization = '', False
         
@@ -411,4 +413,3 @@ class pp_processes():
             result = (Fstat, breakpoints, FSstat, FSpvalue, FAstat, FApvalue)
 
         return result 
-
