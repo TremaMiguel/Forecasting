@@ -6,10 +6,10 @@ from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientB
 from sklearn.metrics import mean_squared_error
 from math import sqrt
 
-class EnsembleTrees():
+class EnsembleTree():
     
     def __init__(self, dt:'pd.DataFrame', target_variable:str, X_train='pd.DataFrame', X_test='pd.DataFrame', y_train='pd.DataFrame', y_test='pd.DataFrame', train = True, *args):
-      '''
+        '''
 	         Initialization Parameters. The train parameter controls if you're going to use a train/test focus or use your whole observations 
            for forecasting. 
            
@@ -23,7 +23,8 @@ class EnsembleTrees():
           :param y_train: Objective variable to train the data
           :param y_test: Objective variable to test the data
 	        :param target_variable: variable that you would like to forecast
-    	'''    
+    	''' 
+        
         if train:
             self.X_train = X_train
             self.X_test = X_test
@@ -39,13 +40,13 @@ class EnsembleTrees():
             
         
     def tree_model(self, q, model:str, mdl_params:dict, criteria = 'mae'):
-    	'''
-	        Based on the choosen model ('rfr' for RandomForest, 'gbr' for GradientBoosting, 'adr' for AdaBoost and 'xgbr' for XG-Boost)
-          implement a Decision Tree for Forecasting one week of data.
-	        :param model: which of the four ML models to implement according to the documentation
-	        :param mdl_params: parameters of the ML model
-	        :param criteria: metric to fit data
-    	'''
+        '''
+	    Based on the choosen model ('rfr' for RandomForest, 'gbr' for GradientBoosting, 'adr' for AdaBoost and 'xgbr' for XG-Boost)
+        implement a Decision Tree for Forecasting one week of data.
+	    :param model: which of the four ML models to implement according to the documentation
+	    :param mdl_params: parameters of the ML model
+        :param criteria: metric to fit data
+        '''
       
         # Train-test Model
         if self.train:
