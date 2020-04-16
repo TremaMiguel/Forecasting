@@ -2,7 +2,8 @@ from scipy import stats
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing, Holt
 from preprocess.process_for_AR import *
-from collections.abc import Sequence
+import pandas as pd 
+import itertools
 
 
 def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
@@ -22,8 +23,8 @@ def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
            bic: BIC of model
            mse_min: MSE of model
            sse: SSE of model
-    	  '''                  
-        assert type(obs) == Sequence, "Data must be of seq type"
+        '''                  
+        assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
         p = q = d = range(0,3)
         pdq  = list(itertools.product(p, d, q))
@@ -36,8 +37,8 @@ def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
 
         untransform = False
         if boxcox == True:
-           y_prc, lmbd = preprocess_AR().boxcox(y_prc)
-           untransform = True        
+            y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+            untransform = True        
 
         # Perform a Grid Search to find the best model
         aic_min = mse_min = 1000000
@@ -107,7 +108,7 @@ def sem(obs, p_mean:bool, boxcox:bool, n_forecast:int):
            mse: MSE of model
            sse_min: SSE of model
     	  '''
-        assert type(obs) == Sequence, "Data must be of seq type"
+        assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
         if p_mean == True:
             y_prc = preprocess_AR().penalized_mean(obs)
@@ -116,8 +117,8 @@ def sem(obs, p_mean:bool, boxcox:bool, n_forecast:int):
 
         untransform = False
         if boxcox == True:
-           y_prc, lmbd = preprocess_AR().boxcox(y_prc)
-           untransform = True   
+            y_prc, lmbd = preprocess_AR().boxcox(y_prc)
+            untransform = True   
 
         # Perform a Grid Search to find the best model
         sse_min, ss = 1000000000, 0
@@ -163,12 +164,12 @@ def holt(obs, p_mean:bool, boxcox:bool, n_forecast:int):
            mse_min: MSE of model
            sse: SSE of model
     	  '''                  
-    assert type(obs) == Sequence, "Data must be of seq type"
+    assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
     if p_mean == True:
-            y_prc = preprocess_AR().penalized_mean(obs)
-        else:
-            y_prc = obs
+        y_prc = preprocess_AR().penalized_mean(obs)
+    else:
+        y_prc = obs
 
     untransform = False
     if boxcox == True:
@@ -214,29 +215,29 @@ def holt(obs, p_mean:bool, boxcox:bool, n_forecast:int):
 
 def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
     '''
-           Implement a Holt Additive Model, abrupt changes decides the seasonal component based 
-           on the number of changes (y_{i+1} - y_{i}) that are greater than the median of the observations (obs)
+       Implement a Holt Additive Model, abrupt changes decides the seasonal component based 
+       on the number of changes (y_{i+1} - y_{i}) that are greater than the median of the observations (obs)
            
-           Input:
-           :param obs: sequential data for forecasting
-           :param p_mean: wether or not to apply penalized_mean
-           :param boxcox: wether or not to apply boxcox transformation
-           :param n_forecast: number of observations to forecast
-          
-           Output:
-           forecast: Forecast for the next n_forecast observations
-           aic_min: AIC of model
-           bic: BIC of model
-           mse_min: MSE of model
-           sse: SSE of model
-    	  '''  
+       Input:
+       :param obs: sequential data for forecasting
+       :param p_mean: wether or not to apply penalized_mean
+       :param boxcox: wether or not to apply boxcox transformation
+       :param n_forecast: number of observations to forecast
 
-    assert type(obs) == Sequence, "Data must be of seq type"
+       Output:
+       forecast: Forecast for the next n_forecast observations
+       aic_min: AIC of model
+       bic: BIC of model
+       mse_min: MSE of model
+       sse: SSE of model
+    '''  
+
+    assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
         
     if p_mean == True:
-            y_prc = preprocess_AR().penalized_mean(obs)
-        else:
-            y_prc = obs
+        y_prc = preprocess_AR().penalized_mean(obs)
+    else:
+        y_prc = obs
     
     #Abrupt Changes
     mean = obs.mean()
