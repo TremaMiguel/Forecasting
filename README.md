@@ -1,20 +1,93 @@
 # Forecasting  
 
-This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series using both Python libraries and R packages together. From **autoregressive models** (`Simple Exponential Smoothing`, `Holt`, `Holt-Winters` or `Arima`), **ensemble trees** (`Ada Boost`, `Gradient Boosting`, `Random Forest`, `XGBoost`) and **neural networks** (LSTM, CNN). Additionaly, you can perform **outlier detection**, **interpolation** and **structural change tests** based on R packages like `tsoutliers` and `strucchange`. There is the option to implement the **tasks in parallel**, check section F `Parallel Computation`. Finally, for **setting up a virtual environment with R and Python** checkout the setting up instrucions under the `setup` folder.  
+This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series using both Python libraries and R packages together, the section D `Theory` is intented to be a compilation of the theory behind forecasting. From **autoregressive models** (`Simple Exponential Smoothing`, `Holt`, `Holt-Winters` or `Arima`), **ensemble trees** (`Ada Boost`, `Gradient Boosting`, `Random Forest`, `XGBoost`) and **neural networks** (LSTM, CNN). Additionaly, you can perform **outlier detection**, **interpolation** and **structural change tests** based on R packages like `tsoutliers` and `strucchange`. There is the option to implement the **tasks in parallel**, check section F `Parallel Computation`. Finally, for **setting up a virtual environment with R and Python** checkout the setting up instrucions under the `setup` folder.  
 
-## A. Autoregressive Models
+***
 
-The selection of the parameters $p$, $d$ or $q$ for the Arima model or the $\alpha$, $\beta$ for the other models is based on a grid search. See section E for more details.
+## A. Exponential Smoothing Models
+
+This methods produce forecasts by weighting average of past observations, this weights decay exponentially as the observations get older. To select between `Simple Exponential Smoothing`, `Holt` or `Holt-Winters` one must be able to recognise the component of the time series (see section D) and the way this components interact with the smoothing method (additive, damped or multiplicative). the image below shows the appropiate model selection based on these conditions, image is taken from chapter 7 of [10].
+
+![ES_models](figs/Classification_ES_models.png)
+
+> **A.1 Simple Exponential Smoothing**
+
+When there is no clear trend or seasonality this model is ideal. It works under assumption of giving less weigth to distant observations through a parameter $\alpha \in [0,1]$ and the following expression
+
+
+$$\hat{y}_{t+1|t} = \alpha y_{t} + \alpha(1-\alpha)y_{t-1} + \alpha(1-\alpha)^2y_{t-2} + ...,$$
+
+notice the decay in the coefficient associated to each $y_{t-k}$, the more distant the observation the larger the value $\alpha(1-\alpha)^k$, thus, the less weight the value $y_{t-k}$ takes.
+
+One can choose the right $\alpha$ value by minimizng the `SSE` or sum of squared residuals 
+
+$$SSE = \sum_{t=1}^{L}(y_{t} - \hat{y}_{t|t-1})^2.$$
+
+> **A.2 Holt Linear Trend Method**
+
+To forecast data with trend, we now include two smoothing equations
+
+$$\hat{y}_{t+h|t} = l_{t} + hb_{t}, $$
+
+$$\text{Level equation} \:\: l_{t} = \alpha y_{t} + (1-\alpha)(l_{t-1} + b_{t-1}),$$
+
+$$\text{Trend equation} \:\: b_{t} = \beta^* (l_{t} - l_{t-1}) + (1-\beta^*)b_{t-1},$$
+
+where $\alpha \in [0,1]$ is the smoothing parameter for the level
+and $\beta^* \in [0,1]$ is the smoothing parameter for the trend. Notice that the level equation is weighted average between the past observation $y_{t}}$ and the first equation. By contrast, the trend equation is a weighted average between the difference in the level equation and the previous trend equation. 
+
+In addition, one can also **dampen the trend** to a flat line. To control this behavior the damping parameter $\phi \in [0,1]$ is included. Thus,  
+
+$$\hat{y}_{t+h|t} = l_{t} + (\phi + \phi^2 + ... + \phi^h)b_{t}, $$
+
+$$l_{t} = \alpha y_{t} + (1-\alpha)(l_{t-1} + \phi b_{t-1}),$$
+
+$$b_{t} = \beta^* (l_{t} - l_{t-1}) + (1-\beta^*)\phi b_{t-1},$$
+
+one can easily see that the dumping parameter is only affecting the trend component. So, an effective damped model would consider $0.8\leq \phi < 1$ because $\phi$ has a strong effect for smaller values. 
+
+> **A.3 Holt-Winters Seasonal method**
+
+This method extends the  Holt model to capture seasonality by additionally incorporating a smoothing equation for the seasonal component. Depending on the nature of the seasonal component there are two variations of this method. When the seasonal variation is changing proportional to the level of the series the `multiplicative method` is choosen. Whereas, when the seasonal variations are constant through the series the `additive method` is the choice. Let's see this two methods in more detail, below the `Holt-Winters additive method`
+
+$$\hat{y}_{t+h|t} = l_{t} + hb_{t} + s_{t+h-m(k+1)}, $$
+
+$$l_{t} = \alpha(y_{t} - s_{t-m}) + (1-\alpha)(l_{t-1} + b_{t-1}),$$
+
+$$b_{t} = \beta^* (l_{t} - l_{t-1}) + (1-\beta^*)b_{t-1},$$
+
+$$s_{t} = \gamma(y_{t}-l_{t-1}-b_{t-1}) + (1-\gamma)s_{t-m},$$
+
+where $m$ denotes the frequency of the seasonality ($m$=12 for monthly data, 
+$m$=4 for quarterly and $m$=52 for weekly data) and $\gamma \in [0, 1-\alpha]$. Note that the seasonal equation is a weighted average between the current season and the same season of $m$ periods ago. In the multiplicative case, the series is seasonally adjusted by dividing through the seasonal component. 
+
+$$\hat{y}_{t+h|t} = (l_{t} + hb_{t}) s_{t+h-m(k+1)}, $$
+
+$$l_{t} = \alpha\dfrac{y_{t}}{s_{t-m}} + (1-\alpha)(l_{t-1} + b_{t-1}),$$
+
+$$b_{t} = \beta^* (l_{t} - l_{t-1}) + (1-\beta^*)b_{t-1},$$
+
+$$s_{t} = \gamma\dfrac{y_{t}}{l_{t-1}-b_{t-1}} + (1-\gamma)s_{t-m}.$$
+
+It is also possible to consider damped versions of this models, check out [10] for more details. A summary of this models is provided in the image below, again taken from [10]
+
+![Trend_Seasonal](figs/Trend_and_Seasonal.png)
+
+Finally, the models `sem`, `holt` and `holt-winters` under the `AutoRegressiveModels.py` file use a grid search to fit the best parameters to each model.  
+
+***
 
 ## B. Decision Tree Models
 
 First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable $y_{t+1}$ we consider n past observations $y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
+---
 
 ## C. Neural Networks
 
 Currently it implements a stacked LSTM. To specify an LSTM specify `model == 'Stacked-LSTM'` when calling the function `nn_model` of the class `NeuralNetworks`. Furthermore, you can specify the number of stacked layers and units by setting the integer parameters `layers` and `units` respectively, for example, if you set `layers=4` and `units=8` each layer will have (units / number of hidden layer) as units.  
 
+---
 
 ## D. Theory
 
@@ -24,13 +97,55 @@ A Time Series has three basic components, which are helpful to understand to ide
 
 1. **Trend**. They are up or down changes (steep upward slope, plateauing downward slope).
 2. **Seasonality**. The effect on the time series by the season (measured by time).
-3. **Noise**. It is composed of:
+3. **Noise**. Is the random variation in the series and it is composed of:
    *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance ($\sigma^2$) and each value has a zero correlation with all other values in the series. See [6] for more details. In other words, the series shows no autocorrelation.
    *   Random Walk. A random walk is another time series model where the current observation is equal to the previous observation with a random step up or down. Checkout [7].
 
 4. **Cycles**. It happens when the time series exhibits rises and fall that aren't of fixed frequency. It is not important not to confuse this concept with seasonality. When the frequency is unchanging and associated with some calendar date then there is seasonality. On the other hand, the fluctuations are cyclic when there are not of a fixed frequency. 
 
-> **B. Autocorrelation**
+> **B. Methods to decompose a Time Series**
+
+A Time series $y_{t}$ can be expressed by the components mentioned before as a sum (`additive`)
+
+$$y_{t} = S_{t} + T_{t} + R_{t}$$
+
+or as a multiplication (`multiplicative`)
+
+$$y_{t} = S_{t} \times T_{t} \times R_{t},$$
+
+where $S_{t}$ is the `seasonal component`, $T_{t}$ the `trend component` and $R_{t}$ the `remainder component` at time $t$.
+But, how can we choose which decomposition is suitable for the time series? When the variation in the seasonal pattern is proportional to the level (average value of the series)  of the time series choose the **multiplicative decomposition**. On the other hand, if the seasonal fluctuations do not vary with the level of the time series choose the **additive decomposition**. 
+
+**B.1 Classical Decomposition**
+
+One strong assumption of this method is that the seasonal component is constant from year to year. The procedure for **Additive Decomposition** is 
+
+> 1. Compute the Trend-Cycle component $\hat{T_{t}}$ with a moving average MA process. If the period $m$ is an odd number use an $m-MA$ other wise an $2\times m-MA$.
+> 2. Detrend the series $y_{t} - \hat{T_{t}}$.
+> 3. Estimate the seasonal component $\hat{S_{t}}$ for each season by averaging the detrended values for each season. 
+> 4. Calculate the remainder component $\hat{R_{t}} = y_{t} - \hat{T_{t}} - \hat{S_{t}}.$
+
+For the **Multiplicative decomposition** the steps are similar, but now consider
+
+ $$y_{t}/\hat{T_{t}}$$ 
+ 
+ in step 2 and 
+ 
+ $$\hat{R_{t}} = y_{t}/(\hat{T_{t}} \hat{S_{t}})$$
+
+ to estimate the remainder. As we said before, the strong assumption of this method (seasonal components repeats every year) it is not reasonable for larger time series because the behavior of the data could change. For example, consider the increasing consumption of mobile devices.
+
+
+**B.1 STL Decomposition**
+
+STL stands for Seasonal and Trend decomposition using Loess. There are two main advantages of this method it can handle any type of seasonality and it can be robust to outliers. In other words, unusual observations will not affect the trend-cycle and seasonal component estimation (the remainder component is indeed affected). 
+
+To choose between a `multiplicative` or `additive` decomposition one should assess the $\lambda$ value of the Box-Cox transformation. That is, if $\lambda = 0$ choose a multiplicative decomposition, otherwise when $\lambda \approx 1$ the additive decomposition is better. 
+
+One can implement it in R with the `stl` function of the `stats` library or from the `statsmodels` package in Python.
+
+
+> **C. Autocorrelation**
 
 Autocorrelation measure the **linear relationship between lagged values** in a time series. The autocorrelation coefficient is given by the formula 
 
@@ -40,7 +155,7 @@ in other words $r_{1}$ measure the relationship between $y_{t}$ and $y_{t-1}$ an
 
 These coefficients are plot to show the autocorrelation function or `ACF`.
 
-> **C. Interpreting an ACF plot**
+> **D. Interpreting an ACF plot**
 
 The ACF plot allow us to identify trend, seasonality or a mixture of the both in the time series.
 
@@ -48,7 +163,7 @@ The ACF plot allow us to identify trend, seasonality or a mixture of the both in
 
  ![Seasonal_trend_ACF](figs/Seasonal_trend_ACF.png)
 
-> **D. Statistical tests for autocorrelation**
+> **E. Statistical tests for autocorrelation**
 
 We would like to test the different $r_{k}$ coefficients. But doing multiple single test could yield a false positive, in other words, we could get to conclude that there is autocorrelation in the residuals when that is not true. We could overcome this with a `Portmanteau test` setting the null hypothesis as following 
 
@@ -60,24 +175,6 @@ $$Q= L(L+2)\sum_{k=1}^h (L-k)^{-1} \: r_{k}^2,$$
 
 where $h$ is the maximum lag considered. Thus, a large value of $Q$ implies that the autocorrelations do not come from a white noise series. Another test that can be considered is the `Breusch-Godfrey` test, both of them are implemented in the function `checkresiduals()` of the `forecast` R package. 
 
-
-> **E. Model Diagnosis**
-
-The residual is the difference between the fitted value and the real value, in mathematical terms
-
-$$e_{t} = y_{t} - \hat{y_{t}}.$$
-
-To check wheter a model has captured the information adequately one should check that the residuals follow the next properties:
-
-1. `The residuals are uncorrelated`. When correlations is present it means that there is information left in the residuals which should be used in computing forecasts.
-
-2. `The residuals have mean zero`. When the mean of the residuals is different from zero, the forecasts are biased. 
-
-3. `The residuals have constant variance`. 
-
-4. `The residuals are normally distributed`. 
-
-Thus, if the residuals of a model does not satisfy these properties it can be improved. For example, to fix the bias problem one just add the mean of the residuals to all the points forecasted.
 
 > **F. Unit Root tests** 
 
@@ -154,6 +251,42 @@ and $u_{t}$ is $I(0)$ and could be hetroskedastic. Notice that $\mu_{t}$ is a ra
 $$KPSS = \bigg(L^{-2} \sum_{t=1}^{L}\hat{S_{t}^2}\bigg) / \lambda^2,$$
 
 where $\hat{S_{t}^2} = \sum_{j=1}^{t}\hat{u_{j}}$ and $\hat{u_{j}}$ are the residuals of the regression of the time series $y_{t}$ on the deterministic components $D_{t}$. 
+
+> **H. Model Diagnosis**
+
+The residual is the difference between the fitted value and the real value, in mathematical terms
+
+$$e_{t} = y_{t} - \hat{y_{t}}.$$
+
+To check wheter a model has captured the information adequately one should check that the residuals follow the next properties:
+
+1. `The residuals are uncorrelated`. When correlations is present it means that there is information left in the residuals which should be used in computing forecasts.
+
+2. `The residuals have mean zero`. When the mean of the residuals is different from zero, the forecasts are biased. 
+
+3. `The residuals have constant variance`. 
+
+4. `The residuals are normally distributed`. 
+
+Thus, if the residuals of a model does not satisfy these properties it can be improved. For example, to fix the bias problem one just add the mean of the residuals to all the points forecasted.
+
+> **I. Model Comparison**
+
+The ``Diebold-Mariano`` test allow us to compare the forecast accuracy between two models. Consider $y_{t}$ as the time series to be forecasted, $y^{1}_{t+h|t}$ and $y^{2}_{t+h|t}$ be two competing forecast on the step $t+h$ and $y_{t+h}$ the real value. Then, the forecast errors associate to this models are 
+
+$$\epsilon_{t+h|t}^{1} = y_{t+h} - y^{1}_{t+h|t} \\ \epsilon_{t+h|t}^{2} = y_{t+h} - y^{2}_{t+h|t}$$
+
+respectively. To determine which models predicts better than the other we may test the null hypothesis of equal predictive accuracy
+
+$$H_{0}: E[d_{t}] = 0,$$
+
+against the alternative 
+
+$$H_{1}: E[d_{t}] \neq 0,$$
+
+where $d_{t} = L(\epsilon_{t+h|t}^{1}) - L(\epsilon_{t+h|t}^{2})$ is the loss differential, for example, an squared error loss is $L(\epsilon_{t+h|t}^{i}) = (\epsilon_{t+h|t}^{i})^2$. One can easily implement this test through the [dm.test()](https://pkg.robjhyndman.com/forecast/reference/dm.test.html) function of the `forecast` package in R.
+
+***
 
 ## E. Preprocess Data (Functions)
 
@@ -255,12 +388,15 @@ The class ```parallel_process``` should be provided with three arguments to init
   
 If you would like to implement both the ```Pool``` and the ```Process``` at the same time, like in the example of countries and indicators, you should initialize two classes because for the moment it does not support to call both at the same time.  Finally, either you call the function ```pp_Queue``` or ```pp_Pool``` it would return as a tuple two objects: ```res``` a list with the results of the tasks and the time it took the whole process to run. 
 
+---
 
 ## G. Set up a virtual environment with R and Python 
 
 To set up a virtual environment with Jupyter Notebook and the required R packages and Python libraries, see the `README.md` file under the folder `setup`. 
 
-***References (Books)***
+***
+
+## References
 
 [1] Scikit-Learn Ensemble. URL: https://scikit-learn.org/stable/modules/ensemble.html
 
@@ -283,3 +419,5 @@ To set up a virtual environment with Jupyter Notebook and the required R package
 [10] Hyndman, Rob; Athanasopoulos, George. Forecasting: Principles and Practice. O Texts, 2018. 
 
 [11] Zivot, Eric. Notes on Unit Root Tests. URL: https://faculty.washington.edu/ezivot/econ584/notes/unitroot.pdf
+
+[12] Zivot, Eric. Notes on Forecasting. URL: https://faculty.washington.edu/ezivot/econ584/notes/forecasting.pdf
