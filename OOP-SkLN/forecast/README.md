@@ -2,15 +2,13 @@
 
 This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series using both Python libraries and R packages together. From **autoregressive models** (`Simple Exponential Smoothing`, `Holt`, `Holt-Winters` or `Arima`), **ensemble trees** (`Ada Boost`, `Gradient Boosting`, `Random Forest`, `XGBoost`) and **neural networks** (LSTM, CNN). Additionaly, you can perform **outlier detection**, **interpolation** and **structural change tests** based on R packages like `tsoutliers` and `strucchange`. There is the option to implement the **tasks in parallel**, check section F `Parallel Computation`. Finally, for **setting up a virtual environment with R and Python** checkout the setting up instrucions under the `setup` folder.  
 
-> **NOTE.** To visualize the latex code in this file add the MathJax plugin for github avaible on this [link](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima/related)
-
 ## A. Autoregressive Models
 
-The selection of the parameters ```$p$```, ```$d$``` or ```$q$``` for the Arima model or the ```$\alpha$```, ```$\beta$``` for the other models is based on a grid search. See section E for more details.
+The selection of the parameters $p$, $d$ or $q$ for the Arima model or the $\alpha$, $\beta$ for the other models is based on a grid search. See section E for more details.
 
 ## B. Decision Tree Models
 
-First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable ```y_{t+1}``` we consider n past observations ```$y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$```. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
+First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable $y_{t+1}$ we consider n past observations $y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
 
 ## C. Neural Networks
@@ -80,6 +78,82 @@ To check wheter a model has captured the information adequately one should check
 4. `The residuals are normally distributed`. 
 
 Thus, if the residuals of a model does not satisfy these properties it can be improved. For example, to fix the bias problem one just add the mean of the residuals to all the points forecasted.
+
+> **F. Unit Root tests** 
+
+When dealing with time series a common task is to determine the form of the trend in the data. In this way, `Unit Root tests` are used to determine how to deal with treading data. In other words, they determine if data should be first differencing
+> For example the ADF tests allow us to determine the order or integration $k$ in a process $I(k)$ by testing the null hypothesis $H_{0}$ of non-stationarity until the data is stationarity. That is, if we reject the null we first difference the time series and perform the ADF until the data is stationary.  
+
+or regressed on deterministic functions of time to render the data stationary. To this end it is crucial to specify the null and alternative hypothesis appropriately to characterize the trend properties of the data. 
+
+***F.1 Specifying the null and alternative hypothesis***
+
+The trend properties of the data under the alternative hypothesis determines the form of the test regression to perform. There are two common cases:
+
+ **Constant Trend.** This formulation is suitable **for non-trending time series**. Considering $y_{t}$ a time series and an autoregressive model with one parameter $AR(1)$, the test regression is 
+
+$$ y_{t} = c + \phi y_{t-1} + \epsilon_{t} $$
+
+and the corresponding hypothesis are
+
+$$H_{0} \: : y_{t} \sim I(1) \:\: \text{without drift} \\ 
+H_{1} \: : y_{t} \sim I(0) \:\: \text{with non-zero mean}
+$$
+
+where $I(k)$ is a process of integrated order $k$.
+
+
+**Constant and Time trend.** 
+
+In this case, we will incorporate a deterministic time trend parameter to the test regression to capture the deterministic trend under the alternative. 
+
+$$y_{t} = c + \delta t + \phi y_{t-1} + \epsilon_{t}$$
+
+The corresponding hypothesis test are 
+
+$$H_{0} \: : y_{t} \sim I(1) \:\: \text{with drift} \\ 
+H_{1} \: : y_{t} \sim I(0) \:\: \text{with deterministic trend}
+$$
+
+Thus, this formulation is appropriate **for trending time series**. 
+
+
+***F.2 Augmented Dicker-Fuller Test***
+
+The prior methods consider a simple $AR(1)$ model. In order to consider a moving average structure, that is, an ARMA structure, the ADF is based on the following test statistic.
+
+$$y_{t} = \beta^{'}D_{t} + \phi y_{t-1} + \sum_{j=1}^{p}\psi_{j}\:\Delta y_{t-j} + \epsilon_{t},$$
+
+where $p$ are the lagged difference terms and the **error term** $\epsilon_{t}$ **is assumed to be homoskedastic** and **[serially uncorrelated](https://www3.nd.edu/~rwilliam/stats2/l26.pdf)**.  So, the ADF test tests the null hypothesis that a time
+series $y_{t}$ is $I(1)$ against the alternative that it is $I(0)$. 
+
+
+***F.3 Phillips-Perron test***
+
+The Phillips-Perron test differs from the ADF by ignoring the serial correlation in the errors and by assuming that they may be [heteroskedastic](https://en.wikipedia.org/wiki/Heteroscedasticity). The test regression is 
+
+$$\Delta y_{t} = \beta^{'}D_{t} + \pi y_{t-1} + \epsilon_{t}$$
+
+and compared to the ADF test, the error term $\epsilon_{t}$ is robust to general forms of heteroskedasticity.
+
+
+> **G. Stationary tests**
+
+We've seen that unit root test test the null hypothesis that the time series $y_{t}$ is $I(1)$. By contrast, stationarity tests test for the null that $y_{t}$ is $I(0)$.
+
+First, we consider the model 
+
+$$y_{t} = \beta^{'}D_{t} + \mu_{t} + u_{t},$$
+
+where 
+
+$$\mu_{t} = \mu_{t-1} + \epsilon_{t}, \: \epsilon_{t} \sim WN(0, \sigma_{\epsilon}^{2})$$
+
+and $u_{t}$ is $I(0)$ and could be hetroskedastic. Notice that $\mu_{t}$ is a random walk with variance $\sigma_{\epsilon}^{2}$ and we would like to proof if $\mu_{t}$ is constant, that is, $\sigma_{\epsilon}^{2} = 0$. In order to do this, we consider the `KPSS test` for testing $\sigma_{\epsilon}^{2} = 0$ against the alternative $\sigma_{\epsilon}^{2} > 0$ with the statistic
+
+$$KPSS = \bigg(L^{-2} \sum_{t=1}^{L}\hat{S_{t}^2}\bigg) / \lambda^2,$$
+
+where $\hat{S_{t}^2} = \sum_{j=1}^{t}\hat{u_{j}}$ and $\hat{u_{j}}$ are the residuals of the regression of the time series $y_{t}$ on the deterministic components $D_{t}$. 
 
 ## E. Preprocess Data (Functions)
 
@@ -207,3 +281,5 @@ To set up a virtual environment with Jupyter Notebook and the required R package
 [9] Stats-Stackexchange. URL: https://stats.stackexchange.com/questions/263366/interpreting-seasonality-in-acf-and-pacf-plots 
 
 [10] Hyndman, Rob; Athanasopoulos, George. Forecasting: Principles and Practice. O Texts, 2018. 
+
+[11] Zivot, Eric. Notes on Unit Root Tests. URL: https://faculty.washington.edu/ezivot/econ584/notes/unitroot.pdf
