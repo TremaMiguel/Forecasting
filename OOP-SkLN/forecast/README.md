@@ -2,13 +2,15 @@
 
 This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series using both Python libraries and R packages together. From **autoregressive models** (`Simple Exponential Smoothing`, `Holt`, `Holt-Winters` or `Arima`), **ensemble trees** (`Ada Boost`, `Gradient Boosting`, `Random Forest`, `XGBoost`) and **neural networks** (LSTM, CNN). Additionaly, you can perform **outlier detection**, **interpolation** and **structural change tests** based on R packages like `tsoutliers` and `strucchange`. There is the option to implement the **tasks in parallel**, check section F `Parallel Computation`. Finally, for **setting up a virtual environment with R and Python** checkout the setting up instrucions under the `setup` folder.  
 
+> **NOTE.** To visualize the latex code in this file add the MathJax plugin for github avaible on this [link](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima/related)
+
 ## A. Autoregressive Models
 
-The selection of the parameters ```p```, ```d``` or ```q``` for the Arima model or the ```alpha```, ```beta``` for the other models is based on a grid search. See section E for more details.
+The selection of the parameters ```$p$```, ```$d$``` or ```$q$``` for the Arima model or the ```$\alpha$```, ```$\beta$``` for the other models is based on a grid search. See section E for more details.
 
 ## B. Decision Tree Models
 
-First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable ```y_{t+1}``` we consider n past observations ```y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}```. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
+First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable ```y_{t+1}``` we consider n past observations ```$y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$```. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
 
 ## C. Neural Networks
@@ -25,7 +27,7 @@ A Time Series has three basic components, which are helpful to understand to ide
 1. **Trend**. They are up or down changes (steep upward slope, plateauing downward slope).
 2. **Seasonality**. The effect on the time series by the season (measured by time).
 3. **Noise**. It is composed of:
-   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance (sigma^2) and each value has a zero correlation with all other values in the series. See [6] for more details. In other words, the series shows no autocorrelation.
+   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance ($\sigma^2$) and each value has a zero correlation with all other values in the series. See [6] for more details. In other words, the series shows no autocorrelation.
    *   Random Walk. A random walk is another time series model where the current observation is equal to the previous observation with a random step up or down. Checkout [7].
 
 4. **Cycles**. It happens when the time series exhibits rises and fall that aren't of fixed frequency. It is not important not to confuse this concept with seasonality. When the frequency is unchanging and associated with some calendar date then there is seasonality. On the other hand, the fluctuations are cyclic when there are not of a fixed frequency. 
