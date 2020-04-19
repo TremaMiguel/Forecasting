@@ -16,15 +16,68 @@ First, the data is transformed with the function ```window_slide```. This is don
 Currently it implements a stacked LSTM. To specify an LSTM specify `model == 'Stacked-LSTM'` when calling the function `nn_model` of the class `NeuralNetworks`. Furthermore, you can specify the number of stacked layers and units by setting the integer parameters `layers` and `units` respectively, for example, if you set `layers=4` and `units=8` each layer will have (units / number of hidden layer) as units.  
 
 
-## D. Components of a Time Series (Theory)
+## D. Theory
 
-A Time Series has three basic components, which are helpful to understand in order to grasp the concepts of structural breaks.
+> **A. Components of a Time Series**
+
+A Time Series has three basic components, which are helpful to understand to identify appropiately a forecasting method that is capable of capturing the patterns of the time series data.
 
 1. **Trend**. They are up or down changes (steep upward slope, plateauing downward slope).
 2. **Seasonality**. The effect on the time series by the season (measured by time).
 3. **Noise**. It is composed of:
-   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance (sigma^2) and each value has a zero correlation with all other values in the series. See [6] for more details. 
+   *   White Noise. If the variables are independent and identically distributed with a mean of zero. This means that all variables have the same variance (sigma^2) and each value has a zero correlation with all other values in the series. See [6] for more details. In other words, the series shows no autocorrelation.
    *   Random Walk. A random walk is another time series model where the current observation is equal to the previous observation with a random step up or down. Checkout [7].
+
+4. **Cycles**. It happens when the time series exhibits rises and fall that aren't of fixed frequency. It is not important not to confuse this concept with seasonality. When the frequency is unchanging and associated with some calendar date then there is seasonality. On the other hand, the fluctuations are cyclic when there are not of a fixed frequency. 
+
+> **B. Autocorrelation**
+
+Autocorrelation measure the **linear relationship between lagged values** in a time series. The autocorrelation coefficient is given by the formula 
+
+$$r_{k} = \dfrac{\sum_{t=k+1}^{L}(y_{t}-\overline{y})(y_{t-k}-\overline{y})}{\sum_{t=1}^{L}(y_{t}-\overline{y})^2}, $$
+
+in other words $r_{1}$ measure the relationship between $y_{t}$ and $y_{t-1}$ and so with $r_{2}, r_{3},...r_{L-1}$.
+
+These coefficients are plot to show the autocorrelation function or `ACF`.
+
+> **C. Interpreting an ACF plot**
+
+The ACF plot allow us to identify trend, seasonality or a mixture of the both in the time series.
+
+ When data have trend, the autocorrelation for the first lags is large and positive (the nearer the data in time the similar they'll be in size/value) and it slowly decrease as the lag increase. By contrast, when the data is seasonal we will see larger values appear every certain lag, that is, the autocorrelation is largeer at multiples of the seasonal frequency than  other lag values. Finally, when data is both trended and seasonal, it is likely to see a combination of these effects. The above image, taken from [9], shows an example of this behavior  
+
+ ![Seasonal_trend_ACF](figs/Seasonal_trend_ACF.png)
+
+> **D. Statistical tests for autocorrelation**
+
+We would like to test the different $r_{k}$ coefficients. But doing multiple single test could yield a false positive, in other words, we could get to conclude that there is autocorrelation in the residuals when that is not true. We could overcome this with a `Portmanteau test` setting the null hypothesis as following 
+
+$$H_{0} = \text{Autocorrelations come from a white noise.}$$
+
+One such test is the `Ljung-Box test`
+
+$$Q= L(L+2)\sum_{k=1}^h (L-k)^{-1} \: r_{k}^2,$$
+
+where $h$ is the maximum lag considered. Thus, a large value of $Q$ implies that the autocorrelations do not come from a white noise series. Another test that can be considered is the `Breusch-Godfrey` test, both of them are implemented in the function `checkresiduals()` of the `forecast` R package. 
+
+
+> **E. Model Diagnosis**
+
+The residual is the difference between the fitted value and the real value, in mathematical terms
+
+$$e_{t} = y_{t} - \hat{y_{t}}.$$
+
+To check wheter a model has captured the information adequately one should check that the residuals follow the next properties:
+
+1. `The residuals are uncorrelated`. When correlations is present it means that there is information left in the residuals which should be used in computing forecasts.
+
+2. `The residuals have mean zero`. When the mean of the residuals is different from zero, the forecasts are biased. 
+
+3. `The residuals have constant variance`. 
+
+4. `The residuals are normally distributed`. 
+
+Thus, if the residuals of a model does not satisfy these properties it can be improved. For example, to fix the bias problem one just add the mean of the residuals to all the points forecasted.
 
 ## E. Preprocess Data (Functions)
 
@@ -131,7 +184,7 @@ If you would like to implement both the ```Pool``` and the ```Process``` at the 
 
 To set up a virtual environment with Jupyter Notebook and the required R packages and Python libraries, see the `README.md` file under the folder `setup`. 
 
-***References***
+***References (Books)***
 
 [1] Scikit-Learn Ensemble. URL: https://scikit-learn.org/stable/modules/ensemble.html
 
@@ -148,3 +201,7 @@ To set up a virtual environment with Jupyter Notebook and the required R package
 [7] Quantstart. https://www.quantstart.com/articles/White-Noise-and-Random-Walks-in-Time-Series-Analysis/
 
 [8] Mane, Priyanka. Python Multiprocessing: Pool vs Process – Comparative Analysis. URL: https://www.ellicium.com/python-multiprocessing-pool-process/
+
+[9] Stats-Stackexchange. URL: https://stats.stackexchange.com/questions/263366/interpreting-seasonality-in-acf-and-pacf-plots 
+
+[10] Hyndman, Rob; Athanasopoulos, George. Forecasting: Principles and Practice. O Texts, 2018. 
