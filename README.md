@@ -2,6 +2,9 @@
 
 This repository is intended to be a recopilaton of different techniques and models that you can perform while forecasting an univariate time series using both Python libraries and R packages together, the section D `Theory` is intented to be a compilation of the theory behind forecasting. From **autoregressive models** (`Simple Exponential Smoothing`, `Holt`, `Holt-Winters` or `Arima`), **ensemble trees** (`Ada Boost`, `Gradient Boosting`, `Random Forest`, `XGBoost`) and **neural networks** (LSTM, CNN). Additionaly, you can perform **outlier detection**, **interpolation** and **structural change tests** based on R packages like `tsoutliers` and `strucchange`. There is the option to implement the **tasks in parallel**, check section F `Parallel Computation`. Finally, for **setting up a virtual environment with R and Python** checkout the setting up instrucions under the `setup` folder.  
 
+
+> NOTE. To visualize the TeX code, activate the [MathJax](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima) plugin for Github.
+
 ***
 
 ## A. Exponential Smoothing Models
@@ -59,7 +62,7 @@ $$b_{t} = \beta^* (l_{t} - l_{t-1}) + (1-\beta^*)b_{t-1},$$
 $$s_{t} = \gamma(y_{t}-l_{t-1}-b_{t-1}) + (1-\gamma)s_{t-m},$$
 
 where $m$ denotes the frequency of the seasonality ($m$=12 for monthly data, 
-$m$=4 for quarterly and $m$=52 for weekly data) and $\gamma \in [0, 1-\alpha]$. Note that the seasonal equation is a weighted average between the current season and the same season of $m$ periods ago. In the multiplicative case, the series is seasonally adjusted by dividing through the seasonal component. 
+$m$=4 for quarterly, $m$=52 for weekly data and $m=7$ for daily data) and $\gamma \in [0, 1-\alpha]$. Note that the seasonal equation is a weighted average between the current season and the same season of $m$ periods ago. In the multiplicative case, the series is seasonally adjusted by dividing through the seasonal component. 
 
 $$\hat{y}_{t+h|t} = (l_{t} + hb_{t}) s_{t+h-m(k+1)}, $$
 
@@ -77,13 +80,43 @@ Finally, the models `sem`, `holt` and `holt-winters` under the `AutoRegressiveMo
 
 ***
 
-## B. Decision Tree Models
+## B. Understanding the ARIMA model
+
+$ARIMA$ stands for autoregressive integrated moving average. But, what does it mean autoregressive or moving average? Basically, it depends on the term that you're considering to forecast the variable of interest. For example, if you're considering the prior observation $y_{t-1}, y_{t-2}, ...$ it is autoregressive and if you're taking into account the forecast errors $\epsilon_{t}, \epsilon_{t-1},...$ it is moving average. 
+
+> **B.1 The autoregressive part**
+
+Autoregression means a regression of the variable against itself, in other words, we forecast the variable of interest $y_{t}$ by taking a linear combination of past values 
+
+$$y_{t} = c + \phi_{1}y_{t-1} + \phi_{2}y_{t-2} + ... + \phi_{p}y_{t-p} + \epsilon_{t},$$
+
+where $c$ is a constant and $\epsilon_{t}$ is white noise. We can refer to this model as an autoregressive model of order $p$ or $AR(p)$ model.
+
+> **B.2 The Movingaverage part**
+
+If we now consider the prior errors of the forecast we have 
+
+$$y_{t} = c + \epsilon_{t} + \alpha_{1}\epsilon_{t-1} + ... + \alpha_{q}\epsilon_{t-q},$$
+
+where $\epsilon_{t}$ is white noise. We can refer to this model as moving average model of order $q$ or $AR(q)$ model.
+
+> **B.3 The non-seasonal $ARIMA$ model**
+
+An $ARIMA$ model is expressed as 
+
+$$y_{t}' = c + \phi_{1}y_{t-1}' + ... + \phi_{p}y_{t-p}' + \alpha_{1}\epsilon_{t-1} + ... + \alpha_{q}\epsilon_{t-q} + \epsilon_{t},$$
+
+where $y_{t}'$ is the degree of differencing in the series, if it is one time is $y_{t}'$ and if it is second time is $y_{t}''$. Therefore when combining the autoregression, the moving average and the differencing we obtain a non-seasonal $ARIMA(p,d,q)$ model, where $p$ is the order or the autoregressive part, $d$ the degree of first differencing and $q$ the order of the moving average part.
+
+***
+
+## C. Decision Tree Models
 
 First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable $y_{t+1}$ we consider n past observations $y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
 ---
 
-## C. Neural Networks
+## D. Neural Networks
 
 Currently it implements a stacked LSTM. To specify an LSTM specify `model == 'Stacked-LSTM'` when calling the function `nn_model` of the class `NeuralNetworks`. Furthermore, you can specify the number of stacked layers and units by setting the integer parameters `layers` and `units` respectively, for example, if you set `layers=4` and `units=8` each layer will have (units / number of hidden layer) as units.  
 
@@ -155,13 +188,33 @@ in other words $r_{1}$ measure the relationship between $y_{t}$ and $y_{t-1}$ an
 
 These coefficients are plot to show the autocorrelation function or `ACF`.
 
-> **D. Interpreting an ACF plot**
+> **D. Interpreting the ACF and PACF plot**
 
 The ACF plot allow us to identify trend, seasonality or a mixture of the both in the time series.
 
  When data have trend, the autocorrelation for the first lags is large and positive (the nearer the data in time the similar they'll be in size/value) and it slowly decrease as the lag increase. By contrast, when the data is seasonal we will see larger values appear every certain lag, that is, the autocorrelation is largeer at multiples of the seasonal frequency than  other lag values. Finally, when data is both trended and seasonal, it is likely to see a combination of these effects. The above image, taken from [9], shows an example of this behavior  
 
  ![Seasonal_trend_ACF](figs/Seasonal_trend_ACF.png)
+
+ The partial autocorrelation is used to measure the relationship between an actual observation $y_{t}$ and a prior observation $y_{t-k}$ after removing the effects of the lags $1,2,3,...,k-1$.
+
+ ![Partial_autocorrelation](figs/partial_autocorrelation.jpg) 
+
+***D.1 Choosing an ARIMA model based on the ACF and PACF***
+
+The ACF and PACF are useful to determine the $p$ and $q$ value of an $ARIMA$ model when the data comes from an $ARIMA(p,d,0)$ or an $ARIMA(0,d,q)$ model. In the first case, the data follow an $ARIMA(p,d,0)$ when 
+
+* The $ACF$ is exponentially decaying or sinusoidal 
+
+* There is a significant spike at lag $p$ in the $PACF$, but none beyond lag $p$.
+
+and an $ARIMA(0,d,q)$ when this behavior is inversed, that is 
+
+* The $PACF$ is exponentially decaying or sinuosoidal,
+
+* There is a significant spike at lag $q$ in the $ACF$, but none beyond lag $q$.
+
+Note that when $p$ and $q$ are both positive, then these plots are not helpful in for finding the values of p and q. 
 
 > **E. Statistical tests for autocorrelation**
 
@@ -175,15 +228,29 @@ $$Q= L(L+2)\sum_{k=1}^h (L-k)^{-1} \: r_{k}^2,$$
 
 where $h$ is the maximum lag considered. Thus, a large value of $Q$ implies that the autocorrelations do not come from a white noise series. Another test that can be considered is the `Breusch-Godfrey` test, both of them are implemented in the function `checkresiduals()` of the `forecast` R package. 
 
+---
 
-> **F. Unit Root tests** 
+> **F. Why it is important to difference a Time Series ?**
+
+A Time Series is stationary if it's properties do not depend on time, that is, it's properties do not change in time. But, what are the properties of a time series? Basically we could consider two main components: it's mean $\mu$ and it's variance $\sigma^2$. Thus, it is natural to think that time series with trends or with seasonality are not stationary because when the values increases so the mean and when there is seasonality the values in a given period depend on the time period.
+
+Now, how could one control the $\mu$ and the $\sigma^2$ of a time series? Remember that a logarithmic transformation smooth values. For example, on a normal scale two is 48 units away from fifty, but in logarithmic scale they are just 3.2 units aways. Therefore, to stabilise the variance the logarithmic transformation is helpful. 
+
+Regarding the mean, think about what is happening when you have an upward/downward trend? The value at a future time $y_{t+1}$ is greater/lower than the current value $y_{t}$. Thus, if we substract the actual value from the future value $y_{t+1} - y_{t}$ we remove the change in the level of the time series, in this way we help stabilise the mean. This procedure is called differencing and it also applies to seasons, that is, 
+
+$$y_{t}' = y_{t} - y_{t-m}$$
+
+where $m$ is the number of seasons or the lag $m$ because we substract the observation after a lag of $m$ periods. In R, the functions `ndiffs` and `nsdiffs` let you determine the number of first differences and seasonal differences to apply respectively. `ndiffs` work by running a sequence of `KPSS` tests until the series is stationary. 
+
+
+> **G. Unit Root tests** 
 
 When dealing with time series a common task is to determine the form of the trend in the data. In this way, `Unit Root tests` are used to determine how to deal with treading data. In other words, they determine if data should be first differencing
 > For example the ADF tests allow us to determine the order or integration $k$ in a process $I(k)$ by testing the null hypothesis $H_{0}$ of non-stationarity until the data is stationarity. That is, if we reject the null we first difference the time series and perform the ADF until the data is stationary.  
 
 or regressed on deterministic functions of time to render the data stationary. To this end it is crucial to specify the null and alternative hypothesis appropriately to characterize the trend properties of the data. 
 
-***F.1 Specifying the null and alternative hypothesis***
+***G.1 Specifying the null and alternative hypothesis***
 
 The trend properties of the data under the alternative hypothesis determines the form of the test regression to perform. There are two common cases:
 
@@ -215,7 +282,7 @@ $$
 Thus, this formulation is appropriate **for trending time series**. 
 
 
-***F.2 Augmented Dicker-Fuller Test***
+***G.2 Augmented Dicker-Fuller Test***
 
 The prior methods consider a simple $AR(1)$ model. In order to consider a moving average structure, that is, an ARMA structure, the ADF is based on the following test statistic.
 
@@ -225,7 +292,7 @@ where $p$ are the lagged difference terms and the **error term** $\epsilon_{t}$ 
 series $y_{t}$ is $I(1)$ against the alternative that it is $I(0)$. 
 
 
-***F.3 Phillips-Perron test***
+***G.3 Phillips-Perron test***
 
 The Phillips-Perron test differs from the ADF by ignoring the serial correlation in the errors and by assuming that they may be [heteroskedastic](https://en.wikipedia.org/wiki/Heteroscedasticity). The test regression is 
 
@@ -234,7 +301,7 @@ $$\Delta y_{t} = \beta^{'}D_{t} + \pi y_{t-1} + \epsilon_{t}$$
 and compared to the ADF test, the error term $\epsilon_{t}$ is robust to general forms of heteroskedasticity.
 
 
-> **G. Stationary tests**
+> **H. Stationary tests**
 
 We've seen that unit root test test the null hypothesis that the time series $y_{t}$ is $I(1)$. By contrast, stationarity tests test for the null that $y_{t}$ is $I(0)$.
 
@@ -252,7 +319,7 @@ $$KPSS = \bigg(L^{-2} \sum_{t=1}^{L}\hat{S_{t}^2}\bigg) / \lambda^2,$$
 
 where $\hat{S_{t}^2} = \sum_{j=1}^{t}\hat{u_{j}}$ and $\hat{u_{j}}$ are the residuals of the regression of the time series $y_{t}$ on the deterministic components $D_{t}$. 
 
-> **H. Model Diagnosis**
+> **I. Model Diagnosis**
 
 The residual is the difference between the fitted value and the real value, in mathematical terms
 
@@ -270,7 +337,7 @@ To check wheter a model has captured the information adequately one should check
 
 Thus, if the residuals of a model does not satisfy these properties it can be improved. For example, to fix the bias problem one just add the mean of the residuals to all the points forecasted.
 
-> **I. Model Comparison**
+> **F. Model Comparison**
 
 The ``Diebold-Mariano`` test allow us to compare the forecast accuracy between two models. Consider $y_{t}$ as the time series to be forecasted, $y^{1}_{t+h|t}$ and $y^{2}_{t+h|t}$ be two competing forecast on the step $t+h$ and $y_{t+h}$ the real value. Then, the forecast errors associate to this models are 
 
@@ -369,6 +436,7 @@ However, you could also proceed by simply detecting the structural breaks and do
  
 The kind of perturbation that shifts cause on the observed time series can be classified as an outlier, when the shift affects the noise component, or as a structural change, when the shift affects one of the signal components.
 
+---
 
 ## F. Parallel Computation 
 
