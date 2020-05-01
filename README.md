@@ -110,13 +110,78 @@ where $y_{t}'$ is the degree of differencing in the series, if it is one time is
 
 ***
 
-## C. Decision Tree Models
+## C. Count Data Models
+
+The prior models consider that the sample space of the data is continuous. But, data could contain small counts $\{0,1,2,3,..\}$ and often a high proportion of zeros. This models are most commonly known as **Intermittent** and are used to forecast the demand of products with several periods of zero demand. 
+
+> **A. Croston Model**
+
+The time series is constructed by noting which time periods contain zero values and which non-zero values. The `demand` is the $y$ component (the non-zero quantity) and the `inter-arrival time` the $a$ component (the time between $q_{i-1}$ and $q_{i}$). Thus, Croston method implies exponential smoothing forecasts for this components 
+
+$$\hat{y}_{i+1|i} = (1-\alpha)\hat{y}_{i|i-1} + \alpha y_{i} \\
+
+\hat{a}_{i+1|i} = (1-\alpha)\hat{a}_{i|i-1} + \alpha a_{i},
+$$
+
+where $\alpha \in [0,1]$ and $\hat{q}_{i+1|i}$ $,\hat{a}_{i+1|i}$ denote the one step forecast of the components respectively. So, the $h-step$ forecast for the demand is given by the ratio 
+
+$$\hat{Y}_{T+h|T} = \dfrac{\hat{y}_{j+1|j}}{\hat{a}_{j+1|j}},$$
+
+where $j$ is the time of the last observed positive observation. Thus, basically the Croston method considers what would the next value be with the $q$ component (expected amount of the items sold) and what would be the interval time of zero values wiht the component $a$ (the time lag between two periods of consecutive demand). In this way, by taking the quotient one is "smoothing" the demand by taking into account that they are peridos of zero values. For a detail about the expectation and the variance of the forecast, see [13].
+
+There are some issues with this method, for example, updating the forecast only in periods of positive demand has a negative effect for periods of highly intermittent demand because this lead to long periods without updating the parameters. 
+
+> **B. Modified Croston Models**
+
+**B.1 Syntetos and Boylan**
+
+In 2001 it was proven by Syntetos and Boylan that the estimator $\hat{y}_{T+h|T}$ is positively bias, that is, the forecast is greater than the actual demand. To correct for this bias, consider 
+
+$$\hat{Y}_{T+h|T} = \bigg(1-\dfrac{\alpha}{2}\bigg)\dfrac{\hat{y}_{j+1|j}}{\hat{a}_{j+1|j}},$$
+
+where $\alpha$ is as before. We notice that this modification reduces the forecast between 0.5 ($\alpha = 1$) and 1 ($\alpha = 0$). 
+
+**B.2 TSB method**
+
+Instead of updating the demand interval, we now consider updating a demand probability element $\pi$, we'll later see why this is an advantage. The model formulation is 
+
+$$\hat{y}_{i+1|i} = (1-\alpha)\hat{y}_{i|i-1} + \alpha y_{i}  \\
+
+\hat{\pi}_{i+1|i} = (1-\beta)\hat{\pi}_{i|i-1} + \beta x_{i},
+$$
+
+where 
+
+$$
+x_{i} =  \begin{cases} 
+      0 & \text{if} \: y_{i} =  0 \\
+      1 & \text{in any other case}
+   \end{cases}
+$$
+
+is an indicator of a non-zero demand at time $i$ and $\hat{\pi}_{i+1|i}$ is the probability of positive demand. Now the $h-$ step forecast is given by the formula 
+
+$$\hat{y}_{T+h|T} = \hat{y}_{i+1|i}\hat{\pi}_{i+1|i}.$$
+
+Notice that the parameters $\alpha$ and $\beta$ intent to smooth demand size and demand probability respectively. 
+
+The key advantage regarding the Croston model is the possibility to update the parameters in every period, therefore, the estimate of the demand probability approaches zeros when there is a long period without demand.  
+
+**B.3 HES method**
+
+Hyperbolic Exponential Smoothing is an hybrid of Croston's method with a Bayesian approach. Compare to the $TSB$, it decays hyperbolically over a period of zeros (obsolescence). Also, it is unbiases on non-intermittent and stochastic intermittent demand according to the authors, see [14].
+
+$$Y_{i|i-1} = \dfrac{\hat{y}_{i|i-1}}{\hat{a}_{i|i-1} + \beta (T_{i|i-1} / 2)},$$
+
+where $T$ is the current number of periods since a demand was last seen and $\beta$ smooths the interval length.  
+
+## D. Decision Tree Models
 
 First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable $y_{t+1}$ we consider n past observations $y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
 
 ---
 
-## D. Neural Networks
+## E. Neural Networks
 
 Currently it implements a stacked LSTM. To specify an LSTM specify `model == 'Stacked-LSTM'` when calling the function `nn_model` of the class `NeuralNetworks`. Furthermore, you can specify the number of stacked layers and units by setting the integer parameters `layers` and `units` respectively, for example, if you set `layers=4` and `units=8` each layer will have (units / number of hidden layer) as units.  
 
@@ -489,3 +554,9 @@ To set up a virtual environment with Jupyter Notebook and the required R package
 [11] Zivot, Eric. Notes on Unit Root Tests. URL: https://faculty.washington.edu/ezivot/econ584/notes/unitroot.pdf
 
 [12] Zivot, Eric. Notes on Forecasting. URL: https://faculty.washington.edu/ezivot/econ584/notes/forecasting.pdf
+
+[13] Engelmeyer, Torben. Managing Intermittent Demand. Springer, 2016. 
+
+[14] Prestwich, S.D.; Tarim, S.A.; Rossi, R; Hnich, B. Forecasting Intermittent Demand by Hyperbolic-Exponential Smoothing. [URL](https://arxiv.org/pdf/1307.6102.pdf)
+
+[15] Waller, Daniel. Methods for Intermittent Demand Forecasting. [URL](https://www.lancaster.ac.uk/pg/waller/pdfs/Intermittent_Demand_Forecasting.pdf)
