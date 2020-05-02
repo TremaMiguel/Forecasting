@@ -114,7 +114,9 @@ where $y_{t}'$ is the degree of differencing in the series, if it is one time is
 
 The prior models consider that the sample space of the data is continuous. But, data could contain small counts $\{0,1,2,3,..\}$ and often a high proportion of zeros. This models are most commonly known as **Intermittent** and are used to forecast the demand of products with several periods of zero demand. 
 
-> **A. Croston Model**
+> **C.1 Ad-hoc models**
+
+**C.1.1 Croston Model**
 
 The time series is constructed by noting which time periods contain zero values and which non-zero values. The `demand` is the $y$ component (the non-zero quantity) and the `inter-arrival time` the $a$ component (the time between $q_{i-1}$ and $q_{i}$). Thus, Croston method implies exponential smoothing forecasts for this components 
 
@@ -131,9 +133,9 @@ where $j$ is the time of the last observed positive observation. Thus, basically
 
 There are some issues with this method, for example, updating the forecast only in periods of positive demand has a negative effect for periods of highly intermittent demand because this lead to long periods without updating the parameters. 
 
-> **B. Modified Croston Models**
+**C.1.2 Modified Croston Models**
 
-**B.1 Syntetos and Boylan**
+**C.1.2.1 Syntetos and Boylan**
 
 In 2001 it was proven by Syntetos and Boylan that the estimator $\hat{y}_{T+h|T}$ is positively bias, that is, the forecast is greater than the actual demand. To correct for this bias, consider 
 
@@ -141,7 +143,7 @@ $$\hat{Y}_{T+h|T} = \bigg(1-\dfrac{\alpha}{2}\bigg)\dfrac{\hat{y}_{j+1|j}}{\hat{
 
 where $\alpha$ is as before. We notice that this modification reduces the forecast between 0.5 ($\alpha = 1$) and 1 ($\alpha = 0$). 
 
-**B.2 TSB method**
+**C.1.2.2  TSB method**
 
 Instead of updating the demand interval, we now consider updating a demand probability element $\pi$, we'll later see why this is an advantage. The model formulation is 
 
@@ -167,7 +169,7 @@ Notice that the parameters $\alpha$ and $\beta$ intent to smooth demand size and
 
 The key advantage regarding the Croston model is the possibility to update the parameters in every period, therefore, the estimate of the demand probability approaches zeros when there is a long period without demand.  
 
-**B.3 HES method**
+**C.1.2.3  HES method**
 
 Hyperbolic Exponential Smoothing is an hybrid of Croston's method with a Bayesian approach. Compare to the $TSB$, it decays hyperbolically over a period of zeros (obsolescence). Also, it is unbiases on non-intermittent and stochastic intermittent demand according to the authors, see [14].
 
@@ -175,9 +177,106 @@ $$Y_{i|i-1} = \dfrac{\hat{y}_{i|i-1}}{\hat{a}_{i|i-1} + \beta (T_{i|i-1} / 2)},$
 
 where $T$ is the current number of periods since a demand was last seen and $\beta$ smooths the interval length.  
 
+> **C.2 Model based models**
+
+This approach considers using statistical models, particularly take an autoregressive and moving average point of view to model intermittent data. 
+
+**C.2.1 INARMA model**
+
+The `INARMA` process stands the idea that the current demand in period $t$ comes from the demand of the prior periods (lingering demand) and an [innovation process](https://en.wikipedia.org/wiki/Innovation_(signal_processing)) (an error). An $INARMA(p,q)$ process is formulated as 
+
+$$Y_{t} = \sum_{i=1}^{p}\alpha_{i}\circ Y_{t-i} + \epsilon_{t} + \sum_{i=1}^{q}\beta_{i}\epsilon_{t-i},$$
+
+where $\epsilon_{t}$ is the error term and $\circ$ denotes the binomial thinning operator
+
+$$\alpha \circ Y = \sum_{i=1}^{Y}B_{i}, \\
+
+B_{i} \sim Ber(\alpha),
+$$
+
+where $\alpha \in [0,1]$. Notice that $\alpha \circ Y$ follows a `binomial distribution`. To gain further insight about parameter estimation see [13]. $INARMA$ is suitable for the distribution of the demand during the lead time. Thus, they are helpful for defining an optimal inventory policy. 
+
+
+> **C.3 Regression models**
+
+
+**C.3.1 Poisson Regression**
+
+This distribution is useful if we could satisfy the assumption of [equidispersion](http://www.eco.uc3m.es/~ricmora/miccua/materials/S17T33_Spanish_handout.pdf). Suppose that the variable of interest $Y$ follows a Poisson distribution then
+
+$$Pr(Y=y|\lambda) = \dfrac{e^{-\lambda}\lambda^y}{y!}.$$
+
+Poisson regression is not suitable when we have unusual observations or excess of zeros because [overdispersion](https://en.wikipedia.org/wiki/Overdispersion) could be present. Overdispersion happens when there is greater variability than expected. 
+
+**C.3.2 Negative Binomial Regression**
+
+As we have mentioned before Poisson Regression fails because it doesn't consider the `heterogeneity` in the data, that is, there are unobserved factors that leverage the variability related with the response variable $Y$. One way to pass through this is the `Negative Binomial` distribution 
+
+$$f(y;\mu,\theta) = \dfrac{\Gamma(y+\theta)}{\Gamma(\theta)y!}\dfrac{\mu^{y}\theta^{\theta}}{(\mu+\theta)^{y+\theta}},$$
+
+where $\mu$ is the mean and $\theta$ is the parameter of overdispersion. One alternative to deal with the overdispesion in the standar Poisson model is to estimate $\theta$ with the data, this approach is known as `Quasi-Poisson` regression. 
+
+**C.3.3 Zero Inflated Regression**
+
+When the presence of zeros is significant, the prior models fail. Thus, we consider a Zero Inflated model which assumes that the zeros in the data come from two distinct processes. One comes from a Poisson, Geometric or Negative Binomial distribution (`count component`) and the other are `point mass zeros`.
+
+$$Pr(y_{i}=0) = g_{i} + (1-g_{i})f(0),$$
+
+where $f$ is a probability function. 
+
+**C.3.3 Hurdle Regression**
+
+In this model there is a `binary decision` between zero or non-zero and other component that determines the values greater than zero when the `Hurdle` (zero or non-zero) is cross
+
+
+$$f_{\text{hurdle}}(y;x,z,\beta,\gamma) = \begin{cases} 
+      y=0 & f_{\text{zero}(0;z,\gamma)} \\
+      y > 0 & 1-\dfrac{f_{zero}(0;z,\gamma)f_{\text{count}}(y;x,\beta)}{1 - f_{\text{count}(0;x,\beta)}} 
+   \end{cases}$$
+
+**C.3.4 Poisson-Tweedie Regression**
+
+The $PT$ have a great flexibility because they allow us to have a good behavior with data that have a great presence of zeros, overdispersion and extreme observations that make the distribution to be heavy tailed. A variable $Y \sim PT(a,b,c)$ with probability function 
+
+$$F_{Y}(y|a,b,c) = \exp \bigg\{\dfrac{b}{a}[(1-c)^{a} - (1-cy)^{a}]\bigg\}, $$
+
+when $a\neq 0$. In other case, a limit should be calculated, see []
+
+
+> **C.4 Evaluation Metrics**
+
+In normal Time Series, it is usual to consider the $RMSE$ or the $MAE$ to assess the fit of the model. However, for intermittent demand they tend to bias forecast in favour of zero demand forecast. In other words, by considering these measures it is easier to minimize its values by forecasting zero values. To overcome this, one considers `scale performance measures`, let's consider the scaled error
+
+$$\epsilon_{t} = \dfrac{y_{t} - \hat{y_{t}}}{\frac{1}{T}\sum_{t=2}^{T}|y_{t} - y_{t-1}|},$$
+
+which can be considered for the measures
+
+$$
+\text{MASE} = mean(|\epsilon_{t}|), \\
+$$
+
+$$
+\text{MSSE} = mean(\epsilon_{t}^2), \\
+$$
+
+$$
+\text{MdASE} = median(|\epsilon_{t}|), \\
+$$
+
+$$
+\text{MdSSE} = median(\epsilon_{t}^2), \\
+$$
+
+where $MASE$ stands for mean absolute scaled error, $MSSE$ for Mean Squared Scaled Error and $Md$ refers to the median like Median Absolute Scaled Error. $MASE$ is recommended as metric for intermittent demand. 
+
+---
+
 ## D. Decision Tree Models
 
 First, the data is transformed with the function ```window_slide```. This is done, in order to be able to forecast when calling the ```predict``` method of each model, that is, for constructing the variable $y_{t+1}$ we consider n past observations $y_{t+1} = y_{t} + y_{t-1} + ... + y_{t-n+1}$. Then, call the desired model (```'rfr'``` for RandomForest, ```'gbr'``` for GradientBoosting, ```'adr'``` for AdaBoost and ```'xgbr'``` for XG-Boost) with the function ```tree_model```. Finally, the parameters of each model where choosen according to [3].
+
+
+
 
 ---
 
@@ -560,3 +659,8 @@ To set up a virtual environment with Jupyter Notebook and the required R package
 [14] Prestwich, S.D.; Tarim, S.A.; Rossi, R; Hnich, B. Forecasting Intermittent Demand by Hyperbolic-Exponential Smoothing. [URL](https://arxiv.org/pdf/1307.6102.pdf)
 
 [15] Waller, Daniel. Methods for Intermittent Demand Forecasting. [URL](https://www.lancaster.ac.uk/pg/waller/pdfs/Intermittent_Demand_Forecasting.pdf)
+
+[16] Peña Carrasco, Manuel. Modelización de conteos mediante la
+distribución Poisson-Tweedie (PT):
+aplicación en datos de
+ultrasecuenciación. [URL](https://ddd.uab.cat/pub/tfg/2013/125799/TFG_ManuelCarrasco.pdf)
