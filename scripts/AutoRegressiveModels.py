@@ -1,10 +1,29 @@
 from scipy import stats
 from statsmodels.tsa.arima_model import ARIMA
-from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing, Holt
-from preprocess import pp_transforms, pp_tests, pp_processes
+from statsmodels.tsa.api import (SimpleExpSmoothing, ExponentialSmoothing, Holt)
+from preprocess import (pp_transforms, pp_tests, pp_processes)
+from rpy2.robjects.packages import importr
+from rpy2.robjects import (pandas2ri, numpy2ri)
 import pandas as pd 
 import numpy as np
 import itertools
+import rpy2
+import rpy2.robjects as ro 
+import statsmodels.api as sm
+
+# Activate automatic conversion
+pandas2ri.activate()
+numpy2ri.activate()
+
+# R libraries
+forecast_r = importr('forecast')
+
+# R functions
+ets, forecast_function  = forecast_r.ets, forecast_r.forecast
+auto_arima = forecast_r.auto_arima
+
+# R objects 
+ts=ro.r('ts')
 
 
 def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
@@ -84,9 +103,9 @@ def arima(obs, p_mean:bool, boxcox:bool, n_forecast:int):
         # Untransform Box-Cox Data
         if untransform:      
             y_pred = pp_transforms().boxcox_untransform(y_pred,lmbd)  
-            mse_min, forecast = ((y_pred - y.astype(float).values) ** 2).mean(), pp_transforms().boxcox_untransform(results.forecast(n_forecast), lmbd)
+            mse_min, forecast = ((y_pred - obs.astype(float).values) ** 2).mean(), pp_transforms().boxcox_untransform(results.forecast(n_forecast), lmbd)
         else:
-            mse_min, forecast = ((y_pred - y.astype(float).values) ** 2).mean(), results.forecast(n_forecast)
+            mse_min, forecast = ((y_pred - obs.astype(float).values) ** 2).mean(), results.forecast(n_forecast)
       
         return (forecast, aic_min, bic,  mse_min, sse)
         
@@ -123,7 +142,7 @@ def sem(obs, p_mean:bool, boxcox:bool, n_forecast:int):
             untransform = True   
 
         # Perform a Grid Search to find the best model
-        sse_min, ss = 1000000000, 0
+        sse_min, sl = 1000000000, 0
         print(obs)
         print(y_prc)
         try:
@@ -260,8 +279,6 @@ def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
         sl = max(dac,uac)
     
     # Fit model and forecast
-    alpha = beta = phi = 0 
-    error = ''
     try:
         mdl = ExponentialSmoothing(y_prc, 
                                    seasonal_periods=sl, 
@@ -283,3 +300,63 @@ def holt_winters(obs, p_mean:bool, boxcox:bool, n_forecast:int):
     forecast = mdl.forecast(n_forecast)
     
     return (forecast, aic, bic, mse, sse)
+
+def ETS(obs, metric, n_forecast):
+    '''
+       It implements the ETS function from the R library forecast. ets() estimates the model parameters and returns information 
+       about the fitted model. It uses the AICc by default to choose the best model.
+           
+       Input:
+       :param obs: sequential data for forecasting
+       :param metric: metric to fit the model
+       :param n_forecast: number of observations to forecast
+
+       Output:
+       forecast: Forecast for the next n_forecast observations
+       model: The model fitted. 
+    '''  
+
+    assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
+
+    # Fit an ets model
+    try:
+        mdl_ets = ets(ts(obs), opt_crit=metric)
+    except rpy2.rinterface.RRuntimeError as e:
+        print(e)
+
+    # Forecast 
+    forecast = forecast_function(mdl_ets, h=n_forecast) 
+    forecast = np.array(forecast.rx2('mean'))
+    model = mdl_ets.rx2('method')
+
+    return (forecast, model)
+
+
+def Auto_Arima(obs, n_forecast):
+    '''
+       It implements the auto_arima() function from the R library forecast. auto_arima() combines unit root tests, minimisation of the AICc 
+       and MLE to obtain an ARIMA model. By default it set stepwise=False to deactive the stepwise search along the different models and 
+       approximation=FALSE to avoid approximation of the information criteria used to select the model.  
+           
+       Input:
+       :param obs: sequential data for forecasting
+       :param n_forecast: number of observations to forecast
+
+       Output:
+       forecast: Forecast for the next n_forecast observations
+       model: The model fitted. 
+    '''  
+
+    assert type(obs) == pd.core.series.Series, "Data must be of pandas Series type"
+
+    # Fit an arima model 
+    try:
+        mdl_arima = auto_arima(obs, stepwise=False, approximation=False)
+    except rpy2.rinterface.RRuntimeError as e:
+        print(e)
+
+    # Forecast
+    forecast = forecast_function(mdl_arima, h=n_forecast)
+    model = mdl_arima.rx2('arma')
+
+    return (forecast, model)
