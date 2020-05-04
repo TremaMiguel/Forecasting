@@ -175,15 +175,15 @@ class pp_processes():
         '''
         times, output = self.time_var.astype(int).unique().tolist(), []
         df = self.dt[[self.obj_var, self.time_var]]
-        for t in range(0, len(times) - 1):
+        for s in range(0, len(times) - 1):
             if times[s+1] - times[s] > 1:
                 times_add = times[s] + 1
-                while times_add < sem[s+1]:
+                while times_add < times[s+1]:
                     output.append([times_add, np.nan])
                     times_add += 1
 
-        output = pd.DataFrame(v, columns= [self.time_var, self.obj_var])
-        output = pd.concat([df,v]).sort_values(by=[self.time_var], axis = 0, ascending = True)
+        output = pd.DataFrame(output, columns= [self.time_var, self.obj_var])
+        output = pd.concat([df,output]).sort_values(by=[self.time_var], axis = 0, ascending = True)
 
         self.dt_t = output
         return output
@@ -250,10 +250,13 @@ class pp_processes():
 
 
         # Fit an Arima model 
-        fit = forecast_automarima(self.obj, max_p=3, max_q=3,
-                                  ic = ro.StrVector(["bic"]),
-                                  trace = True, nmodels = 15,
-                                  stepwise = True)
+        fit = forecast.autoarima(self.obj,
+                                 max_p=3, 
+                                 max_q=3,
+                                 ic = ro.StrVector(["bic"]),
+                                 trace = True, 
+                                 nmodels = 15,
+                                 stepwise = True)
 
         resid, pars = forecast.residuals_forecast(fit), tsoutliers.coefs2poly(fit)
         fitted = fit.rx2('fitted')
@@ -299,7 +302,7 @@ class pp_processes():
         res = org = self.obj
         
         # Option 1: Tsoutliers
-        output, other = forecast_tsoutliers(self.obj), False 
+        output, other = forecast.tsoutliers(self.obj), False 
         idx, rep = output.rx2('index'), output.rx2('replacements')
         idx = idx - 1 # Python indexes start in 0
         
@@ -314,7 +317,7 @@ class pp_processes():
             
             # Option 2: Hampel Filter
             if method == "Hampel":
-                res_hmp = pracma_hampel(self.obj, k = 4, t0 = 2.5)
+                res_hmp = pracma.hampel(self.obj, k = 4, t0 = 2.5)
                 res, idx, rep = res_hmp.rx2('y'), res_hmp.rx2('ind'), None
             
             # Option 3: Interpolation Methods
