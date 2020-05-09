@@ -3,24 +3,15 @@ from preprocess import pp_tests
 
 class AutoRegressive():
 
-    def __init__(self, df:bool, dt:'pd.DataFrame'=None, target_variable:str=None, target:'pd.Series'=None, *args):
+    def __init__(self, target:'pd.Series'=None):
         '''
-	    Initialization Parameters. It assummes your target values are in a columnar form. 
-            :param df: Is the data a dataframe of a series.
-	    :param dt: Data with all the observations
-	    :param target_variable: variable that you would like to forecast
             :param target: series of data
     	'''   
-        if df:
-            self.dt = dt 
-            self.target = dt[target_variable]
-            self.dependent = dt.drop(columns=[target_variable])
-        else:
-            self.target = target
+        self.target = target
 
     def AR_model(self, n_forecast:int=2):
         '''
-	  First test for seasonality and trend in data with an Augmented Dicker Fuller Test and KPSS test. Then, based on the 
+	      First test for seasonality and trend in data with an Augmented Dicker Fuller Test and KPSS test. Then, based on the 
           choosen model ('arima' for Seasonal Arima, 'sem' for Simple Exponential Smoothing, 'holt' for Holt,
           'holt-winters' for Holt-Winters) implements an AutoRegressive model for Forecasting.
           
