@@ -149,6 +149,20 @@ class pp_tests():
             model = model.join('arima').strip()
         return model, regularization
 
+    @staticmethod 
+    def diebold_mariano(resid1, resid2):
+        # Diebold Mariano test
+        mdl_comparison = dm_test(resid1, resid2, alternative="greater")
+        dm_p_value = np.array(mdl_comparison.rx2('p.value'))[0] 
+        
+        # Model selection
+        if dm_p_value < 0.05:
+            result = "Second Model"
+        else:
+            result = "First Model"
+
+        return result
+
 class pp_processes():
 
     def __init__(self, dt:'pd.DataFrame',obj_var:str,time_var:str):
@@ -159,6 +173,7 @@ class pp_processes():
         self.obj = dt[obj_var]
         self.obj_t = pd.Series()
         self.time = dt[time_var]
+        self.process = pd.DataFrame()
  
     def fill_time(self) -> 'pd.DataFrame':
         '''
@@ -187,7 +202,47 @@ class pp_processes():
 
         self.dt_t = output
         return output
-	
+
+    def window_slide(self, lags:int):
+    	'''
+	    Implement a Window slide to the input data
+	    :param lags: how many prior observations to be considered for each target variable 
+    	'''
+        lags, max_index = lags +1, len(self.obj)
+        dt = pd.DataFrame(columns = [f"lag_{i}" for i in range(1,lags+1)])
+        while max_index - lags >= 0:
+            dt.loc[len(dt)] = list(self.obj[max_index - lags:max_index])
+            max_index -= 1
+        dt = dt.rename(columns={f"lag_{lags}": "target_variable"})          # Rename column target
+        dt = dt.reindex(index=dt.index[::-1])                               # Inverse order, the most recent observation should be the last observation of the dataframe
+        self.process = dt.apply(pd.to_numeric, errors='ignore')
+        return self.process 
+    
+
+    def train_test_split(self, train_size:int=.8, random_state = 0, shuffle = False):
+    	'''
+	    Implement the train_test_split function of the sklearn library. Notice that this function would normally be run after you have 
+        apply a window slide to your data. 
+	    :param train_size: what percentage of data we would like to use to fit the model
+        :param random_state: seed	   
+        :param shuffle: wheter to shuffle or not the data
+        '''
+        Y, X = self.process["target_variable"], self.process.drop(columns = ["target_variable"])
+        X_train, X_test, y_train, y_test = train_test_split(X, Y, train_size= train_size, random_state= random_state, shuffle = shuffle)
+        return X_train, X_test, y_train, y_test
+
+
+class pp_functions():
+
+    def __init__(self, dt:'pd.DataFrame',obj_var:str,time_var:str):
+        self.dt = dt
+        self.dt_t = pd.DataFrame()
+        self.obj_var = obj_var
+        self.time_var = time_var
+        self.obj = dt[obj_var]
+        self.obj_t = pd.Series()
+        self.time = dt[time_var]
+        self.process = pd.DataFrame()
 	
     def interpolation(self, method:str, plot:bool, params:dict):
         '''
@@ -343,7 +398,6 @@ class pp_processes():
 
 
     def structural_change(self, method:str):
-
         '''
           Structural Break Change Analysis through fluctutation process or F-statistic test according to the 
           methods of the strucchange R package.
