@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import xgboost as xgb
+import matplotlib.pyplot as plt 
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error
@@ -116,6 +117,5 @@ class EnsembleTree():
             # Visualization of Real vs Prediction
             plt.plot(y_pred, color = 'red')
             plt.plot(y_true, color = 'blue')
-            plt.plot(y_pred, color = 'red')
-            plt.plot(y_true, color = 'blue')
+
         return (forecast, metric)
